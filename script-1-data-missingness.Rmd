@@ -35,7 +35,7 @@ knitr::opts_chunk$set(fig.path = './figures/script-1/')
 
 # Objective
 
-To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), and clinical variables (active TB, possible psychiatric disorder, CD4, viral load).
+To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), and clinical variables (CD4, viral load).
 
 # Analysis notes
 
@@ -202,99 +202,6 @@ Those who were unemployed had the greatest proportion of missing values.
 ----
 
 # Clinical variables
-
-## TB
-
-`ever_TB` defined as having developed active TB at any stage over the first 48 weeks of the study.
-
-```{r tb}
-# Process the TB data and join with missingness data
-df_TB <- df %>% 
-    select(ranid, interval_name, tb_screen) %>% 
-    # Determine whether active TB developed at any stage of the 48 weeks
-    pivot_wider(names_from = interval_name,
-                values_from = tb_screen) %>% 
-    mutate_at(2:6, ~ifelse(. == 'Negative',
-                              yes = 0,
-                              no = 1)) %>% 
-    mutate(ever_TB = rowSums(.[2:6], na.rm = TRUE)) %>% 
-    mutate(ever_TB = ifelse(ever_TB == 0,
-                        yes = 'No', 
-                        no = 'Yes')) %>% 
-    select(ranid, ever_TB)
-
-df_TB <- df_combined %>% 
-    select(ranid, any_missing) %>% 
-    left_join(df_TB)
-
-# Tabulate and print
-df_TB %>% 
-    mutate(ever_TB = fct_explicit_na(ever_TB)) %>% 
-    group_by(ever_TB, any_missing) %>% 
-    summarise(count = n()) %>% 
-    group_by(ever_TB) %>% 
-    mutate(total = sum(count),
-           proportion = round(count / total,3)) %>% 
-    knitr::kable(caption = 'Missing pain data by whether there was ever active TB')
-
-# Tabulate, plot, and test
-tab_tb <- xtabs(~any_missing + ever_TB, data = df_TB)
-
-mosaicplot(tab_tb, main = 'Counts by whether there was ever active TB')
-
-prop_tb <- prop.table(tab_tb, 2)
-
-mosaicplot(prop_tb, main = 'Proportion by whether there was ever active TB')
-
-chisq.test(tab_tb)
-```
-
-## Modified Mini Screen (mental health)
-
-`ever_MMS` defined as having had an MMS score $\geq$ 6 at any stage over the first 48 weeks of the study. Where, an MSS score $\geq$ 6 indicates that a person should undergo a formal psychiatric evaluation. 
-
-```{r mms}
-# Process the MSS data and join with missingness data
-df_MMS <- df %>% 
-    select(ranid, interval_name, mms_total) %>% 
-    # Determine whether MMS exceeded 5 at any stage of the 48 weeks
-    mutate(mms_high = ifelse(mms_total >= 6,
-                             yes = 1,
-                             no = 0)) %>% 
-    select(-mms_total) %>% 
-    pivot_wider(names_from = interval_name,
-                values_from = mms_high) %>% 
-    mutate(ever_MMS = rowSums(.[2:6], na.rm = TRUE)) %>% 
-    mutate(ever_MMS = ifelse(ever_MMS == 0,
-                        yes = 'No', 
-                        no = 'Yes')) %>% 
-    select(ranid, ever_MMS)
-
-df_MMS <- df_combined %>% 
-    select(ranid, any_missing) %>% 
-    left_join(df_MMS)
-
-# Tabulate and print
-df_MMS %>% 
-    mutate(ever_MMS = fct_explicit_na(ever_MMS)) %>% 
-    group_by(ever_MMS, any_missing) %>% 
-    summarise(count = n()) %>% 
-    group_by(ever_MMS) %>% 
-    mutate(total = sum(count),
-           proportion = round(count / total, 3)) %>% 
-    knitr::kable(caption = 'Proportion missing pain data by whether there was ever a high MMS score')
-
-# Tabulate, plot, and test
-tab_mms <- xtabs(~any_missing + ever_MMS, data = df_MMS)
-
-mosaicplot(tab_mms, main = 'Counts by whether there was ever a high MMS score')
-
-prop_mms <- prop.table(tab_mms, 2)
-
-mosaicplot(prop_mms, main = 'Proportion of counts by whether there was ever a high MMS score')
-
-chisq.test(tab_mms)
-```
 
 ## CD4 T-cell count
 
