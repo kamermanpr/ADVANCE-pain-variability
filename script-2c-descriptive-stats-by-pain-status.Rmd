@@ -1,6 +1,6 @@
 ---
-title: "Script 2b"
-subtitle: "Descriptive stats at each time interval"
+title: "Script 2c"
+subtitle: "Descriptive stats by pain status"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 geometry: margin=15mm
@@ -18,15 +18,15 @@ if(!dir.exists('./figures')) {
     dir.create('./figures/')
 }
 
-if(!dir.exists('./figures/script-2b')) {
-    dir.create('./figures/script-2b/')
+if(!dir.exists('./figures/script-2c')) {
+    dir.create('./figures/script-2c/')
 }
 
 # ggplot theme
 theme_set(new = theme_bw(base_size = 20))
 
 # knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-2b/')
+knitr::opts_chunk$set(fig.path = './figures/script-2c/')
 ```
 
 ----
@@ -50,7 +50,7 @@ For analysis purposes, missing data in the _site of pain_ columns were changed t
 ```{r import}
 df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
     select(ranid, interval_name, pain_in_the_last_week, 
-           cd4_cells.ul, viral_load_cp.ml, tb_screen,
+           cd4_cells.ul,
            any_missing, interval_numeric)
 ```
 
@@ -119,15 +119,6 @@ df_cd4 <- df %>%
               max = max(cd4_cells.ul, na.rm = TRUE)) 
 
 df_cd4 <- df_cd4[c(1, 3, 5), ]
-
-## TB
-df_tb <- as.data.frame(xtabs(~interval_name + tb_screen, 
-                               data = df)) %>% 
-    rename(count = Freq) %>% 
-    group_by(interval_name) %>% 
-    mutate(total = sum(count)) %>% 
-    mutate(proportion = round(count / total, 3)) %>% 
-    filter(tb_screen == 'Positive') 
 ```
 
 ## Tabulate
@@ -144,10 +135,6 @@ df_cd4 %>%
 # Viral load
 df_vl %>% 
   knitr::kable(caption = '5-number summary of viral load (copies/ml)')
-
-# Active TB
-df_tb %>% 
-  knitr::kable(caption = 'Proportion with active TB')
 ```
 
 ----
@@ -199,36 +186,6 @@ p_cd4 <- df %>%
           plot.title = element_text(size = 22),
           axis.text = element_text(size = 22),
           panel.grid = element_blank()); p_cd4
-  
-# TB
-p_tb <- df %>% 
-    group_by(interval_name, pain_in_the_last_week, tb_screen) %>% 
-    summarise(count = n()) %>% 
-    group_by(interval_name, pain_in_the_last_week) %>% 
-    mutate(total = sum(count)) %>% 
-    mutate(prop = 100 * count/total) %>% 
-    filter(tb_screen == 'Positive') %>%
-    ungroup() %>% 
-    complete(interval_name, pain_in_the_last_week,
-             fill = list(prop = 0.005)) %>% 
-    ggplot(.) +
-    aes(x = interval_name,
-        y = prop, 
-        fill = pain_in_the_last_week) +
-    geom_col(position = position_dodge()) +
-    labs(title = 'Active tuberculosis (TB)',
-         y = 'Active TB (%)',
-         x = 'Weeks') +
-    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
-    scale_fill_tableau(name = 'Pain in the\nlast week') +
-    theme(legend.position = 'none',
-          plot.title = element_text(size = 22),
-          plot.subtitle = element_text(size = rel(0.8)),
-          legend.title = element_blank(),
-          axis.title.y = element_text(size = 22),
-          axis.title.x = element_text(size = 22),
-          axis.text = element_text(size = 22),
-          panel.grid = element_blank()); p_tb
 ```
 
 ----
