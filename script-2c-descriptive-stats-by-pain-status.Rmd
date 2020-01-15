@@ -1,0 +1,240 @@
+---
+title: "Script 2b"
+subtitle: "Descriptive stats at each time interval"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(ggthemes)
+library(patchwork)
+
+# Set figures directory
+if(!dir.exists('./figures')) {
+    dir.create('./figures/')
+}
+
+if(!dir.exists('./figures/script-2b')) {
+    dir.create('./figures/script-2b/')
+}
+
+# ggplot theme
+theme_set(new = theme_bw(base_size = 20))
+
+# knitr options
+knitr::opts_chunk$set(fig.path = './figures/script-2b/')
+```
+
+----
+
+# Analysis notes
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0.
+
+These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were incongruent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **incongruent**. 
+
+Data also were considered **incongruent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **incongruent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, pain_in_the_last_week, 
+           cd4_cells.ul, viral_load_cp.ml, tb_screen,
+           any_missing, interval_numeric)
+```
+
+# First look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean
+
+```{r clean}
+# Clean and process data
+df %<>% 
+    filter(any_missing == 'No') %>% 
+    select(-any_missing)
+```
+
+# Quick tabulation
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick_tab}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+
+----
+
+# Analysis
+
+## Prepare summary data for tabulation and plotting
+
+```{r prepare}
+# Pain in the last week
+df_pain <- as.data.frame(xtabs(~interval_name + pain_in_the_last_week, 
+                               data = df)) %>% 
+    rename(count = Freq) %>% 
+    group_by(interval_name) %>% 
+    mutate(total = sum(count)) %>% 
+    mutate(proportion = round(count / total, 3)) %>% 
+    filter(pain_in_the_last_week == 'Yes') 
+
+# Viral load
+df_vl <- df %>% 
+    group_by(interval_name) %>% 
+    mutate(viral_load_cp.ml = ifelse(viral_load_cp.ml < 50,
+                                     yes = 50,
+                                     no = viral_load_cp.ml)) %>% 
+    summarise(missing = sum(is.na(viral_load_cp.ml)),
+              median = median(viral_load_cp.ml, na.rm = TRUE),
+              Q25 = quantile(viral_load_cp.ml, probs = 0.25, na.rm = TRUE),
+              Q75 = quantile(viral_load_cp.ml, probs = 0.75, na.rm = TRUE),
+              min = min(viral_load_cp.ml, na.rm = TRUE),
+              max = max(viral_load_cp.ml, na.rm = TRUE)) 
+
+# CD4
+df_cd4 <- df %>% 
+    group_by(interval_name) %>% 
+    summarise(missing = sum(is.na(cd4_cells.ul)),
+              median = median(cd4_cells.ul, na.rm = TRUE),
+              Q25 = quantile(cd4_cells.ul, probs = 0.25, na.rm = TRUE),
+              Q75 = quantile(cd4_cells.ul, probs = 0.75, na.rm = TRUE),
+              min = min(cd4_cells.ul, na.rm = TRUE),
+              max = max(cd4_cells.ul, na.rm = TRUE)) 
+
+df_cd4 <- df_cd4[c(1, 3, 5), ]
+
+## TB
+df_tb <- as.data.frame(xtabs(~interval_name + tb_screen, 
+                               data = df)) %>% 
+    rename(count = Freq) %>% 
+    group_by(interval_name) %>% 
+    mutate(total = sum(count)) %>% 
+    mutate(proportion = round(count / total, 3)) %>% 
+    filter(tb_screen == 'Positive') 
+```
+
+## Tabulate
+
+```{r tabulate}
+# Pain
+df_pain %>% 
+  knitr::kable(caption = 'Proportion with pain in the last week')
+
+# CD4
+df_cd4 %>% 
+  knitr::kable(caption = '5-number summary of CD4 T-cell count (cells/ul)')
+
+# Viral load
+df_vl %>% 
+  knitr::kable(caption = '5-number summary of viral load (copies/ml)')
+
+# Active TB
+df_tb %>% 
+  knitr::kable(caption = 'Proportion with active TB')
+```
+
+----
+
+# Bivarite plots
+
+```{r bivariate}
+# Viral load
+p_vl <- df %>% 
+    select(interval_name, pain_in_the_last_week, viral_load_cp.ml) %>% 
+    ggplot(data = .) +
+    aes(y = viral_load_cp.ml, 
+        x = interval_name,
+        fill = pain_in_the_last_week) +
+    geom_boxplot(key_glyph = "rect") +
+    labs(title = 'HIV-1 RNA viral load ',
+         y = expression('Viral load (log'[10]~'copies/ml)'),
+         x = 'Weeks') +
+    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
+    scale_y_log10() +
+    scale_fill_tableau(name = 'Pain: ') +
+    theme(plot.margin = margin(t = 4,l= 1, r = 1, b = 1, "lines"),
+          legend.direction = 'horizontal',
+          legend.position = c(0.5, 1.25),
+          axis.title = element_text(size = 22),
+          plot.title = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_vl
+
+# CD4
+p_cd4 <- df %>% 
+    select(interval_name, interval_numeric, 
+           pain_in_the_last_week, cd4_cells.ul) %>% 
+    mutate(cd4_cells.ul = ifelse(interval_numeric == 12 | interval_numeric == 36,
+                                 yes = NA,
+                                 no = cd4_cells.ul)) %>% 
+    ggplot(data = .) +
+    aes(y = cd4_cells.ul, 
+        x = interval_name,
+        fill = pain_in_the_last_week) +
+    geom_boxplot() +
+    labs(title = 'CD4 T-cell count',
+         y = expression('CD4 count (cells/mm'^3*')'),
+         x = 'Weeks') +
+    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
+    scale_fill_tableau(name = 'Pain in the\nlast week') +
+    theme(legend.position = 'none',
+          axis.title = element_text(size = 22),
+          plot.title = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_cd4
+  
+# TB
+p_tb <- df %>% 
+    group_by(interval_name, pain_in_the_last_week, tb_screen) %>% 
+    summarise(count = n()) %>% 
+    group_by(interval_name, pain_in_the_last_week) %>% 
+    mutate(total = sum(count)) %>% 
+    mutate(prop = 100 * count/total) %>% 
+    filter(tb_screen == 'Positive') %>%
+    ungroup() %>% 
+    complete(interval_name, pain_in_the_last_week,
+             fill = list(prop = 0.005)) %>% 
+    ggplot(.) +
+    aes(x = interval_name,
+        y = prop, 
+        fill = pain_in_the_last_week) +
+    geom_col(position = position_dodge()) +
+    labs(title = 'Active tuberculosis (TB)',
+         y = 'Active TB (%)',
+         x = 'Weeks') +
+    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
+    scale_fill_tableau(name = 'Pain in the\nlast week') +
+    theme(legend.position = 'none',
+          plot.title = element_text(size = 22),
+          plot.subtitle = element_text(size = rel(0.8)),
+          legend.title = element_blank(),
+          axis.title.y = element_text(size = 22),
+          axis.title.x = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_tb
+```
+
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```

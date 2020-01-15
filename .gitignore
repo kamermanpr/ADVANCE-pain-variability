@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+*.docx
+*.pptx
+*.pxm
+WRHI-060-brief-pain-questionnaire_v3_04Apr2017.pdf
+venter2019.pdf
+data-cleaned/
+data-original/
+figures/
+Supplement-*.*
+ADVANCE-*
+body-chart.png
+

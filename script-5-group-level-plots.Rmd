@@ -1,0 +1,327 @@
+---
+title: "Script 5"
+subtitle: "Group-level plots"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(ggthemes)
+library(patchwork)
+
+
+# Set figures directory
+if(!dir.exists('./figures')) {
+    dir.create('./figures/')
+}
+
+if(!dir.exists('./figures/script-5')) {
+    dir.create('./figures/script-5/')
+}
+
+# ggplot theme
+theme_set(new = theme_bw(base_size = 20))
+
+# knitr options
+knitr::opts_chunk$set(fig.path = './figures/script-5/')
+```
+
+----
+
+# Analysis notes
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst, 
+           site_worst, ends_with('_pain'), any_missing)
+```
+
+# Quick look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean
+
+```{r clean}
+# Clean and process data
+df %<>% 
+    filter(any_missing == 'No') %>% 
+    select(-any_missing)
+```
+
+# Quick tabulations 
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick3}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+
+----
+
+# Extract data
+
+## Proportion with pain
+
+```{r extract_proportion}
+df_proportion <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst) %>% 
+    mutate(pain = ifelse(pain_in_the_last_week == 'Yes' & pain_worst > 0, 
+                         yes = 'Yes', 
+                         no = 'No')) %>% 
+    select(-pain_in_the_last_week, -pain_worst)
+```
+
+## Intensity of worst pain
+
+```{r extract_intensity}
+df_intensity <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst) %>% 
+    filter(pain_in_the_last_week == 'Yes' & pain_worst > 0) %>% 
+    select(-pain_in_the_last_week)
+```
+
+## Number of pain sites
+
+```{r extract_sites}
+df_sites <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst, ends_with('_pain')) %>% 
+    filter(pain_in_the_last_week == 'Yes' & pain_worst > 0) %>% 
+    select(-pain_in_the_last_week, -pain_worst)
+```
+
+## Site of worst pain
+
+```{r extract_worst_site}
+df_worst_site <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst, site_worst) %>% 
+    filter(pain_in_the_last_week == 'Yes' & pain_worst > 0) %>% 
+    select(-pain_in_the_last_week, -pain_worst)
+```
+
+----
+
+# Plots
+
+## Proportion with pain
+
+```{r plot_proportion}
+# Process data 
+df_proportion %<>%
+    group_by(interval_name, pain) %>% 
+    summarise(count = n()) %>% 
+    group_by(interval_name) %>% 
+    mutate(total = sum(count)) %>% 
+    mutate(proportion = round(count / total, 3)) %>% 
+    filter(pain == 'Yes') %>% 
+    ungroup()
+
+# Plot
+p_proportion <- df_proportion %>% 
+    ggplot(data = .) +
+    aes(x = interval_name,
+        y = proportion) +
+    geom_point(size = 8) +
+    labs(title = 'Proportion with pain',
+         y = 'Proportion',
+         x = 'Time (weeks)') +
+    scale_y_continuous(limits = c(0, 0.2), 
+                       breaks = c(0, 0.1, 0.2)) + 
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    theme(plot.title = element_text(size = 22),
+          axis.title = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_proportion
+```
+
+## Intensity of worst pain
+
+```{r plot_intensity}
+# Process data
+## N/A
+
+# Plot data
+p_intensity <- df_intensity %>% 
+    ggplot(data = .) +
+    aes(x = interval_name,
+        y = pain_worst) +
+    geom_boxplot() +
+    labs(title = 'Intensity of the worst pain',
+         y = 'Pain intensity',
+         x = 'Time (weeks)') +
+    scale_y_continuous(limits = c(0, 10), 
+                       breaks = c(0, 5, 10)) + 
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    theme(plot.title = element_text(size = 22),
+          axis.title = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_intensity
+```
+
+## Number of pain sites
+
+```{r plot_sites}
+# Process data
+sites <- df_sites %>% 
+    pivot_longer(cols = ends_with('_pain'),
+                 names_to = 'sites',
+                 values_to = 'values') %>% 
+    mutate(values = ifelse(values == 'Yes',
+                           yes = TRUE,
+                           no = FALSE)) %>% 
+    group_by(ranid, interval_name) %>% 
+    summarise(sum = sum(values)) %>% 
+    ungroup()
+
+# Plot
+p_sites <- sites %>% 
+    ggplot(data = .) +
+    aes(x = interval_name,
+        y = sum) +
+    geom_boxplot() +
+    labs(title = 'Number of pain sites',
+         y = 'Count',
+         x = 'Time (weeks)') +
+    scale_y_continuous(limits = c(0, 10), 
+                       breaks = c(0, 5, 10)) + 
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    theme(axis.title = element_text(size = 22),
+          plot.title = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_sites
+```
+
+# Prevalence of pain sites
+
+```{r plot_number}
+# Process data
+prevalence <- df_sites %>% 
+    pivot_longer(col = ends_with('_pain'),
+                 names_to = 'key',
+                 values_to = 'values') %>% 
+    group_by(interval_name, key, values) %>% 
+    summarise(count = n()) %>% 
+    group_by(interval_name, key) %>% 
+    mutate(total = sum(count),
+           prop = count / total) %>% 
+    filter(values != 'No') %>% 
+    filter(prop >= 0.10) %>% 
+    ungroup() %>% 
+    mutate(key = factor(key,
+                        levels = c('leg_pain', 'chest_pain', 'foot_pain',
+                                   'low_back_pain', 'head_pain', 'abdominal_pain'),
+                        labels = c('Leg', 'Chest', 'Foot', 
+                                   'Low back', 'Head', 'Abdomen'),
+                        ordered = TRUE))
+
+# Plot
+p_prevalence <- ggplot(data = prevalence) +
+    aes(x = interval_name,
+        y = key,
+        fill = key) +
+    geom_tile(colour = '#FFFFFF', size = 1) +
+    labs(title = 'Common pain sites',
+         subtitle = expression('(prevalence '>='10%)'),
+         x = 'Time (weeks)') +
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    scale_fill_manual(values = rep(c('#1170aa', '#a3acb9'), 3)) +
+    theme(legend.position = 'none',
+          plot.title = element_text(size = 22),
+          plot.subtitle = element_text(size = rel(0.8)),
+          legend.title = element_blank(),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_prevalence
+
+```
+
+## Site of worst pain
+
+```{r plot_worst_site}
+# Process data
+df_worst_site %<>% 
+    group_by(interval_name, site_worst) %>% 
+    summarise(count = n()) %>% 
+    group_by(interval_name) %>% 
+    mutate(total = sum(count),
+           proportion = count / total) %>% 
+    filter(proportion >= 0.10) %>% 
+    ungroup() %>% 
+    mutate(site_worst = factor(site_worst,
+                               levels = c('Leg', 'Feet', 'Chest',
+                                          'Low back', 'Head', 'Abdomen'),
+                               labels = c('Leg', 'Foot', 'Chest', 
+                                          'Low back', 'Head', 'Abdomen'),
+                               ordered = TRUE))
+
+# Plot
+p_worst_sites <- df_worst_site %>% 
+    ggplot(data = .) +
+    aes(x = interval_name,
+        y = site_worst,
+        fill = site_worst) +
+    geom_tile(colour = '#FFFFFF',
+              size = 1) +
+    labs(title = 'Sites of the worst pain', 
+         subtitle = expression('(prevalence '>='10%)'),
+         y = 'Proportion',
+         x = 'Time (weeks)') +
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    scale_fill_manual(values = rep(c('#1170aa', '#a3acb9'), 3)) +
+    theme(legend.position = 'none',
+          plot.title = element_text(size = 22),
+          plot.subtitle = element_text(size = rel(0.8)),
+          legend.title = element_blank(),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(size = 22),
+          axis.text = element_text(size = 22),
+          panel.grid = element_blank()); p_worst_sites
+```
+
+----
+
+# Publication plots
+
+```{r patchwork}
+# With p_prevalence
+pp_plot2 <- p_proportion + p_intensity + p_sites + p_prevalence + 
+    plot_layout(ncol = 2) + plot_annotation(tag_levels = 'A')
+
+ggsave(x = pp_plot2, 
+       filename = 'figures/figure-1.png', 
+       height = 10, width = 11)
+```
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```
