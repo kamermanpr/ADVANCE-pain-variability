@@ -61,7 +61,7 @@ For analysis purposes, missing data in the _site of pain_ columns were changed t
 ```{r import}
 df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
     select(ranid, interval_name, pain_in_the_last_week, 
-           cd4_cells.ul, viral_load_cp.ml, tb_screen, mms_total,
+           cd4_cells.ul, viral_load_cp.ml,
            general_health, any_missing, interval_numeric)
 ```
 
@@ -139,45 +139,6 @@ df %>%
   labs(subtitle = 'CD4 T-cell count',
        y = 'CD4 count (cells/ul)',
        x = 'Weeks')
-```
-
-## Active TB
-
-```{r tb}
-# Tabulate data
-as.data.frame(xtabs(~interval_name + tb_screen, 
-                               data = df)) %>% 
-    rename(count = Freq) %>% 
-    group_by(interval_name) %>% 
-    mutate(total = sum(count)) %>% 
-    mutate(proportion = round(count / total, 3)) %>% 
-    filter(tb_screen == 'Positive') %>% 
-    knitr::kable(caption = 'Proportion with active TB')
-```
-
-## Modified Mini Screen
-
-Values $\geq$ 6 indicate a need to full psychiatric evaluation.
-
-```{r mms}
-# Tabulate data
-df %>% 
-  select(interval_name, mms_total) %>% 
-  group_by(interval_name) %>% 
-  skim_to_wide() %>% 
-  select(-type, -variable) %>% 
-  skimr::kable(caption = '5-number summary of the MMS total score')
-
-# Plot data
-df %>% 
-  ggplot(data = .) +
-  aes(x = factor(interval_numeric),
-      y = mms_total) +
-  geom_boxplot() +
-  labs(subtitle = 'Modified Mini Score',
-       y = 'MMS score',
-       x = 'Weeks')
-
 ```
 
 ## General health
