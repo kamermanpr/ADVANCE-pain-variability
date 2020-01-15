@@ -50,7 +50,7 @@ For analysis purposes, missing data in the _site of pain_ columns were changed t
 ```{r import}
 df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
     select(ranid, interval_name, pain_in_the_last_week, 
-           cd4_cells.ul,
+           cd4_cells.ul, viral_load_cp.ml,
            any_missing, interval_numeric)
 ```
 
