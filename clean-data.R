@@ -433,104 +433,6 @@ vl %<>%
 
 nrow(vl)
 
-#-- Modified Mini Screen (MMS) --#
-## Import MMS data
-mms <- readxl::read_xlsx(path = 'data-original/ADVANCE-mental-health.xlsx') %>% 
-    janitor::clean_names()
-
-## Inspect MMS data
-glimpse(mms)
-
-## Clean MMS data
-mms %<>% 
-    select(-visit_date, -sex, -comments) %>% 
-    # Fix visits column to match that of the sites data
-    mutate(visit = case_when(
-        str_detect(visit, pattern = 'Enrolment') ~ 'Visit 0 W00',
-        str_detect(visit, pattern = 'EOS') ~ 'Visit 9 W98',
-        TRUE ~ visit
-    )) %>% 
-    separate(col = visit,
-             into = c('visit', 'number', 'weeks'),
-             sep = ' ') %>% 
-    select(-weeks) %>% 
-    unite(col = 'visit', visit, number, sep = '  ') %>% 
-    mutate(visit = case_when(
-               str_detect(visit, pattern = 'Visit  0') ~ 'Enrolment',
-               str_detect(visit, pattern = 'Visit  9') ~ 'Visit  9/EOS',
-               TRUE ~ visit
-           )) %>% 
-    rename(interval_name = visit) %>% 
-    # Calculate MMS score
-    mutate_at(4:25, ~ifelse(. == 'No',
-                            yes = 0,
-                            no = 1)) %>% 
-    mutate(mms_total = rowSums(.[4:25])) %>% 
-    select(ranid, interval_name, group, mms_total) %>% 
-    # Include all combinations of visit and ranid
-    complete(ranid, interval_name) %>% 
-    # Retain only enrolment to visit 9
-    filter(interval_name %in% c('Enrolment', 'Visit  1', 'Visit  2',
-                                'Visit  3', 'Visit  4', 'Visit  5', 
-                                'Visit  6', 'Visit  7', 'Visit  8',
-                                'Visit  9/EOS'))
-
-unique(mms$interval_name)
-length(unique(mms$ranid))
-nrow(mms)
-    
-#-- TB screening --#
-## Import TB data
-tb <- readxl::read_xlsx(path = 'data-original/ADVANCE-tb-screening.xlsx') %>% 
-    janitor::clean_names()
-
-## Inspect tb data
-glimpse(tb)
-
-## Clean TB data
-tb %<>% 
-    select(ranid, group, visit, result) %>% 
-    # Fix visits column to match that of the sites data
-    mutate(visit = case_when(
-        str_detect(visit, pattern = 'Enrolment') ~ 'Visit 0 W00',
-        str_detect(visit, pattern = 'EOS') ~ 'Visit 9 W98',
-        TRUE ~ visit
-    )) %>% 
-    separate(col = visit,
-             into = c('visit', 'number', 'weeks'),
-             sep = ' ') %>% 
-    select(-weeks) %>% 
-    unite(col = 'visit', visit, number, sep = '  ') %>% 
-    mutate(visit = case_when(
-        str_detect(visit, pattern = 'Visit  0') ~ 'Enrolment',
-        str_detect(visit, pattern = 'Visit  9') ~ 'Visit  9/EOS',
-        TRUE ~ visit
-    )) %>% 
-    rename(interval_name = visit,
-           tb_screen = result) %>% 
-    # Include all combinations of visit and ranid
-    complete(ranid, interval_name) %>% 
-    # Retain only enrolment to visit 9
-    filter(interval_name %in% c('Enrolment', 'Visit  1', 'Visit  2',
-                                'Visit  3', 'Visit  4', 'Visit  5', 
-                                'Visit  6', 'Visit  7', 'Visit  8',
-                                'Visit  9/EOS'))
-    
-unique(tb$interval_name)
-length(unique(tb$ranid))
-nrow(tb)
-
-# Check unique ranid
-unique(tb$ranid)
-
-# Remove rows with non-"0X-XXXX" format
-tb %<>% 
-    filter(str_detect(ranid, pattern = '^0'))
-
-unique(tb$interval_name)
-length(unique(tb$ranid))
-nrow(tb)
-
 #-- General health perception --#
 ## Import general health data
 qol <- readxl::read_xlsx(path = 'data-original/ADVANCE-QoL-domain-score.xlsx') %>% 
@@ -588,20 +490,13 @@ df <- sites %>%
     left_join(demo) %>% 
     left_join(cd4) %>% 
     left_join(vl) %>% 
-    left_join(tb) %>%
-    left_join(qol) %>% 
-    left_join(mms) 
+    left_join(qol)
 
 #-- Final fixes following a visual inspection --#
 # Missing site_name data
 df %<>% 
     group_by(ranid) %>% 
     fill(site_name, .direction = 'updown')
-
-# Missing group data
-df %<>%
-    group_by(ranid) %>% 
-    fill(group, .direction = 'updown')
 
 df %<>% ungroup()
 
