@@ -150,8 +150,8 @@ plot_patchwork <- plot_summary + plot_individual +
 plot_patchwork
 
 # Save outcome
-ggsave(filename = 'figures/figure-3.png', plot_individual2,
-       width = 10.2, height = 7.72)
+# ggsave(filename = 'figures/figure-x.png', plot_individual2,
+#        width = 10.2, height = 7.72)
 ```
 
 ## Tabulate pain progression patterns
@@ -250,6 +250,12 @@ knitr::kable(data.frame('type' = c('Sequence count', 'Percent of total sequences
                                     round(100 * (sum(df_5yes$yes_5) / 
                                                      sum(df_xtab$frequency)), 2))),
              caption = "Sequences with at least 5 'yes' (pain present) in series")
+
+# Number of participants with isolated pain
+787 - sum(c(393,79, 20, 4, 1))
+
+# Proportion of participants with isolated pain
+(787 - sum(c(393,79, 20, 4, 1)))/787
 ```
 
 ----
