@@ -35,7 +35,7 @@ knitr::opts_chunk$set(fig.path = './figures/script-1/')
 
 # Objective
 
-To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), and clinical variables (CD4, viral load).
+To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), or clinical variables (CD4, viral load).
 
 # Analysis notes
 
@@ -51,7 +51,7 @@ Data also were considered **inconsistent** when _pain in the last week_ = 'Yes',
 
 Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
 
-For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present at the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
 
 ----
 
@@ -136,7 +136,7 @@ prop_sex <- prop.table(tab_sex, 2)
 
 mosaicplot(prop_sex, main = 'Proportions by sex')
 
-chisq.test(tab_sex)
+fisher.test(tab_sex)
 ```
 
 ## Education
@@ -340,7 +340,7 @@ prop_group <- prop.table(tab_group, 2)
 mosaicplot(prop_group, main = 'Proportions by group allocation',
            ylab = 'Allocation')
 
-chisq.test(tab_group)
+fisher.test(tab_group)
 ```
 
 ----

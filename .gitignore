@@ -6,13 +6,12 @@
 *.docx
 *.pptx
 *.pxm
-*.zip
-WRHI-060-brief-pain-questionnaire_v3_04Apr2017.pdf
-venter2019.pdf
-data-cleaned/
-data-original/
-figures/
-Supplement-*.*
-ADVANCE-*
-body-chart.png
+data-original/*.zip
+/ADVANCE-*
+/body-chart.png
+figures/figure-4a-legend.png
+figures/figure-4b-legend.png
+figures/figure-4c-legend.png
+figures/figure-4.png
+
 

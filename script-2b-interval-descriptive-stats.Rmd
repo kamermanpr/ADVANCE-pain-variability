@@ -35,7 +35,7 @@ knitr::opts_chunk$set(fig.path = './figures/script-2b/')
 
 # Objective 
 
-To describe the demographic characteristics and disease status of the analysis cohort at each study assessment interval.
+To describe the demographic characteristics and disease status of the analysis cohort at each study time point.
 
 # Analysis notes
 

@@ -1,6 +1,6 @@
 ---
 title: "Script 5"
-subtitle: "Group-level plots"
+subtitle: "Group-level publication plots"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 geometry: margin=15mm

@@ -1,5 +1,5 @@
 ---
-title: "Script 7"
+title: "Script 4b"
 subtitle: "Repeated pain sites"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"

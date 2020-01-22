@@ -1,6 +1,6 @@
 ---
 title: "Script 6"
-subtitle: "Individual level plots"
+subtitle: "Individual-level pub;ication plots"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 geometry: margin=15mm

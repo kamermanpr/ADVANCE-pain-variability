@@ -1,0 +1,10 @@
+# 2 yes
+White        '#FFFFFF' None
+Blue         '#4E79A7' AbdomenLight Blue   '#A0CBE8' ArmOrange       '#F28E2B' ButtocksLight Orange '#FFBE7D' ChestGreen        '#59A14F' FeetLight Green  '#8CD17D' GenitalsYellow-Green '#B6992D' HandYellow       '#F1CE63' HeadTeal         '#499894' Hip/groinLight Teal   '#86BCB6' LegRed          '#E15759' Low backPink         '#FF9D9A' NeckDark Gray    '#79706E' Shoulder
+
+# 3 yes
+White        '#FFFFFF' None
+Blue         '#4E79A7' AbdomenLight Blue   '#A0CBE8' ArmOrange       '#F28E2B' ButtocksLight Orange '#FFBE7D' ChestGreen        '#59A14F' FeetYellow       '#F1CE63' HeadTeal         '#499894' Hip/groinLight Teal   '#86BCB6' LegRed          '#E15759' Low backPink         '#FF9D9A' NeckDark Gray    '#79706E' Shoulder
+
+# 4 yes
+White        '#FFFFFF' NoneLight Blue   '#A0CBE8' ArmOrange       '#F28E2B' ButtocksLight Orange '#FFBE7D' ChestGreen        '#59A14F' FeetYellow       '#F1CE63' HeadLight Teal   '#86BCB6' LegRed          '#E15759' Low backPink         '#FF9D9A' NeckDark Gray    '#79706E' Shoulder
