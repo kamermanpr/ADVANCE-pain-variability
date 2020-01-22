@@ -34,8 +34,7 @@ sites %<>%
     select(-hurt_most_part_comments,
            -have_you_had_any_of_these_pains_every_day_or_most_days_of_the_week_for_last_three_months,
            -have_you_had_any_of_these_pains_every_day_or_most_days_of_the_week_for_last_six_months) %>% 
-    rename(date_of_visit = dovisit,
-           pain_in_the_last_week = have_you_had_pain_other_than_these_everyday_kinds_of_pain_during_the_last_week,
+    rename(pain_in_the_last_week = have_you_had_pain_other_than_these_everyday_kinds_of_pain_during_the_last_week,
            pain_worst = please_rate_your_pain_by_circling_the_one_number_that_best_describes_your_pain_at_its_worst_in_the_last_week,
            pain_now = please_rate_your_pain_by_circling_the_one_number_that_tells_how_much_pain_you_have_right_now) %>% 
     # Ensure there are no white spaces
@@ -288,10 +287,23 @@ glimpse(cd4)
 cd4 %<>% 
     select(ranid,
            visit,
+           group,
            result) %>% 
     rename(cd4 = result) %>% 
     # Remove 'ND' values
     filter(cd4 != 'ND')
+
+cd4 %<>%
+    # Fix group data
+    mutate(group = case_when(
+        str_detect(group, 'GROUP 3') ~ 'EFV + TDF + FTC',
+        str_detect(group, 'GROUP 2') ~ 'DTG + TDF + FTC',
+        str_detect(group, 'GROUP 1') ~ 'DTG + TAF + FTC'
+    )) %>% 
+    # Fill in missing 
+    group_by(ranid) %>% 
+    fill(group) %>% 
+    ungroup()
 
 cd4 %<>% 
     # Fix visits column to match that of the sites data
@@ -498,6 +510,10 @@ df %<>%
     group_by(ranid) %>% 
     fill(site_name, .direction = 'updown')
 
+# Missing group name data
+df %<>%
+    fill(group)
+    
 df %<>% ungroup()
 
 # cd4 and viral load to numeric
