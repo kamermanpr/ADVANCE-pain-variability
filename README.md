@@ -10,5 +10,5 @@ Data and analysis scripts for an exploratory comparison of group-level changes i
 
 ## Reproducibility
 
-For reproducibility we have built a Docker container with the environment used to run the scripts:  
-[]()
+For reproducibility we have built a Docker image with the environment used to run the scripts:  
+[kamermanpr/docker-pain-variability](https://hub.docker.com/repository/docker/kamermanpr/docker-pain-variability)
