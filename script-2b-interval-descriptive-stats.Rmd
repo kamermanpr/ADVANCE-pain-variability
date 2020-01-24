@@ -11,9 +11,7 @@ geometry: margin=15mm
 library(tidyverse)
 library(magrittr)
 library(skimr)
-
-# Skimr
-skim_with(numeric = list(variable = NULL, hist = NULL))
+library(knitr)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -25,10 +23,12 @@ if(!dir.exists('./figures/script-2b')) {
 }
 
 # ggplot theme
-theme_set(new = theme_bw(base_size = 18))
+theme_set(new = theme_bw(base_size = 16))
 
 # knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-2b/')
+opts_chunk$set(warning = FALSE,
+               message = FALSE, 
+               fig.path = './figures/script-2b/')
 ```
 
 ----
@@ -94,29 +94,6 @@ xtabs(~interval_name, data = df)
 
 # Analysis
 
-## Viral load
-
-```{r vl}
-# Tabulate data
-df %>% 
-  select(interval_name, viral_load_cp.ml) %>% 
-  group_by(interval_name) %>% 
-  skim_to_wide() %>% 
-  select(-type, -variable) %>% 
-  skimr::kable(caption = '5-number summary of viral load (copies/ml)')
-
-# Plot data
-df %>% 
-  ggplot(data = .) +
-  aes(x = factor(interval_numeric),
-      y = viral_load_cp.ml) +
-  geom_boxplot() +
-  scale_y_log10() +
-  labs(subtitle = 'Viral load',
-       y = expression('Viral load [log'[10]*'(copies/ml)]'),
-       x = 'Weeks')
-```
-
 ## CD4 T-cell count
 
 ```{r cd4}
@@ -125,9 +102,10 @@ df %>%
   filter(interval_numeric %in% c(0, 24, 48)) %>% 
   select(interval_name, cd4_cells.ul) %>% 
   group_by(interval_name) %>% 
-  skim_to_wide() %>% 
-  select(-type, -variable) %>% 
-  skimr::kable(caption = '5-number summary of CD4 T-cell count (cells/ul)')
+  skim() %>% 
+  yank('numeric') %>% 
+  select(-skim_variable, -hist, -complete_rate) %>%  
+  kable(caption = '7-number summary of CD4 T-cell count (cells/ul)')
 
 # Plot data
 df %>% 
@@ -141,6 +119,30 @@ df %>%
        x = 'Weeks')
 ```
 
+## Viral load
+
+```{r vl}
+# Tabulate data
+df %>% 
+  select(interval_name, viral_load_cp.ml) %>% 
+  group_by(interval_name) %>% 
+  skim() %>% 
+  yank('numeric') %>% 
+  select(-skim_variable, -hist, -complete_rate) %>% 
+  kable(caption = '7-number summary of viral load (copies/ml)')
+
+# Plot data
+df %>% 
+  ggplot(data = .) +
+  aes(x = factor(interval_numeric),
+      y = viral_load_cp.ml) +
+  geom_boxplot() +
+  scale_y_log10() +
+  labs(subtitle = 'Viral load',
+       y = expression('Viral load [log'[10]*'(copies/ml)]'),
+       x = 'Weeks')
+```
+
 ## General health
 
 Rating of perceived health status on a 5-point Likert scale (1 = poor, 5 = excellent).
@@ -150,9 +152,10 @@ Rating of perceived health status on a 5-point Likert scale (1 = poor, 5 = excel
 df %>% 
   select(interval_name, general_health) %>% 
   group_by(interval_name) %>% 
-  skim_to_wide() %>% 
-  select(-type, -variable) %>% 
-  skimr::kable(caption = '5-number summary of the general health score')
+  skim() %>% 
+  yank('numeric') %>% 
+  select(-skim_variable, -hist, -complete_rate) %>% 
+  kable(caption = '7-number summary of the general health score')
 
 # Plot data
 df %>% 

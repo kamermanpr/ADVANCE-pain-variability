@@ -12,11 +12,8 @@ library(tidyverse)
 library(magrittr)
 library(ggforce)
 library(skimr)
+library(knitr)
 library(patchwork)
-
-# Configure skimr
-skim_with(numeric = list(hist = NULL),
-          character = list(min = NULL, max = NULL, empty = NULL))
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -28,10 +25,12 @@ if(!dir.exists('./figures/script-2a')) {
 }
 
 # ggplot theme
-theme_set(new = theme_bw(base_size = 18))
+theme_set(new = theme_bw(base_size = 16))
 
 # Knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-2a/')
+opts_chunk$set(warning = FALSE,
+               message = FALSE, 
+               fig.path = './figures/script-2a/')
 ```
 
 ----
@@ -81,7 +80,7 @@ df %<>%
 # Extract enrolment data
 df %<>%
     filter(interval_name == '0 weeks')
-    ```
+```
 
 # Quick tabulation
 
@@ -96,9 +95,10 @@ xtabs(~interval_name, data = df)
 
 # Basic summary
 
-```{r skim, results = 'asis'}
+```{r skim}
 skim(df) %>% 
-    skimr::kable(caption = 'Quick summary')
+    select(-numeric.hist, -complete_rate, 
+           -character.min, -character.max, -character.whitespace)
 ```
 
 ----
@@ -146,7 +146,7 @@ df %>%
            missing = sum(is.na(df$site_name))) %>% 
     mutate(proportion = round(count / n, 3)) %>% 
     select(site_name, count, n, missing, proportion) %>% 
-    knitr::kable(caption = 'Study site: summary statistics')
+    kable(caption = 'Study site: summary statistics')
 ```
 
 ## Treatment group allocation
@@ -194,7 +194,7 @@ df %>%
     mutate(n = sum(count),
            proportion = round(count / n, 3)) %>% 
     select(group, count, proportion, missing, n) %>% 
-    knitr::kable(caption = 'Study group allocation: summary statistics')
+    kable(caption = 'Study group allocation: summary statistics')
 ```
 
 ----
@@ -203,7 +203,7 @@ df %>%
 
 ## Age
 
-```{r age, results = 'asis'}
+```{r age}
 # Plot
 ggplot(data = df) +
     aes(x = 'Data',
@@ -218,12 +218,14 @@ ggplot(data = df) +
 df %>% 
     select(age) %>% 
     skim() %>% 
-    skimr::kable(caption = 'Age: summary statistics')
+    yank('numeric') %>% 
+    select(-hist, -complete_rate) %>% 
+    kable(caption = 'Age: summary statistics')
 ```
 
 ## Sex
 
-```{r sex, results = 'asis'}
+```{r sex}
 # Plot
 sex_count <- ggplot(data = df) +
     aes(x = sex) +
@@ -256,7 +258,9 @@ df %>%
     select(sex) %>% 
     mutate(sex = factor(sex)) %>% 
     skim() %>% 
-    skimr::kable(caption = 'Sex: summary statistics')
+    yank('factor') %>% 
+    select(-complete_rate) %>%
+    kable(caption = 'Sex: summary statistics')
 
 df %>% 
     group_by(sex) %>% 
@@ -265,12 +269,12 @@ df %>%
            missing = sum(is.na(df$sex))) %>% 
     mutate(proportion = round(count / n, 3)) %>% 
     select(sex, count, n, missing, proportion) %>% 
-    knitr::kable(caption = 'Sex: summary statistics 2')
+    kable(caption = 'Sex: summary statistics 2')
 ```
 
 ## Ancestry
 
-```{r ancestry, results = 'asis'}
+```{r ancestry}
 # Plot
 anc_count <- ggplot(data = df) +
     aes(x = ancestry) +
@@ -303,7 +307,9 @@ df %>%
     select(ancestry) %>% 
     mutate(ancestry= factor(ancestry)) %>% 
     skim() %>%
-    skimr::kable(caption = 'Ancestry: summary statistics')
+    yank('factor') %>% 
+    select(-complete_rate) %>% 
+    kable(caption = 'Ancestry: summary statistics')
 
 df %>% 
     group_by(ancestry) %>% 
@@ -312,12 +318,12 @@ df %>%
            missing = sum(is.na(df$ancestry))) %>% 
     mutate(proportion = round(count / n, 3)) %>% 
     select(ancestry, count, n, missing, proportion) %>% 
-    knitr::kable(caption = 'Ancestry: summary statistics 2')
+    kable(caption = 'Ancestry: summary statistics 2')
 ```
 
 ## Education
 
-```{r edu, fig.height = 6, results = 'asis'}
+```{r edu, fig.height = 6}
 # Plot
 edu_count <- df %>% 
     mutate(education = str_replace_na(education)) %>% 
@@ -372,7 +378,9 @@ df %>%
     select(education) %>% 
     mutate(education = factor(education)) %>% 
     skim() %>% 
-    skimr::kable(caption = 'Education: summary statistics')
+    yank('factor') %>% 
+    select(-complete_rate) %>% 
+    kable(caption = 'Education: summary statistics')
 
 df %>% 
     group_by(education) %>% 
@@ -383,12 +391,12 @@ df %>%
     mutate(proportion = round(count / n, 3)) %>% 
     select(education, count, n, missing, proportion) %>% 
     filter(education != 'NA') %>% 
-    knitr::kable(caption = 'Education: summary statistics 2')
+    kable(caption = 'Education: summary statistics 2')
 ```
 
 ## Employment
 
-```{r emp, fig.height = 6, results = 'asis'}
+```{r emp, fig.height = 6}
 # Plot
 emp_count <- df %>% 
     mutate(employment_status = str_replace_na(employment_status)) %>% 
@@ -438,7 +446,9 @@ df %>%
     select(employment_status) %>% 
     mutate(employment_status = factor(employment_status)) %>% 
     skim() %>% 
-    skimr::kable(caption = 'Employment status: summary statistics')
+    yank('factor') %>% 
+    select(-complete_rate) %>%  
+    kable(caption = 'Employment status: summary statistics')
 
 df %>% 
     group_by(employment_status) %>% 
@@ -449,7 +459,7 @@ df %>%
     mutate(proportion = round(count / n, 3)) %>% 
     select(employment_status, count, n, missing, proportion) %>% 
     filter(employment_status != 'NA') %>% 
-    knitr::kable(caption = 'Employment status: summary statistics 2')
+    kable(caption = 'Employment status: summary statistics 2')
 ```
 
 ----
@@ -458,7 +468,7 @@ df %>%
 
 ## CD4 T-cell count
 
-```{r cd4, results = 'asis'}
+```{r cd4}
 # Plot
 ggplot(data = df) +
     aes(x = 'Data',
@@ -473,12 +483,14 @@ ggplot(data = df) +
 df %>% 
     select(cd4_cells.ul) %>% 
     skim() %>% 
-    skimr::kable(caption = 'CD4 T-cell count: summary statistics')
+    yank('numeric') %>%
+    select(-hist, -complete_rate) %>% 
+    kable(caption = 'CD4 T-cell count: summary statistics')
 ```
 
 ## Viral load
 
-```{r viral, results = 'asis'}
+```{r viral}
 # Plot
 ggplot(data = df) +
     aes(x = 'Data',
@@ -494,12 +506,14 @@ ggplot(data = df) +
 df %>% 
     select(viral_load_cp.ml) %>% 
     skim() %>% 
-    skimr::kable(caption = 'Viral load: summary statistics')
+    yank('numeric') %>% 
+    select(-hist, -complete_rate) %>% 
+    kable(caption = 'Viral load: summary statistics')
 ```
 
 ## Perception of health (baseline)
 
-```{r qol, results = 'asis'}
+```{r qol}
 # Plot
 ggplot(data = df) +
     aes(x = 'Data',
@@ -515,11 +529,13 @@ ggplot(data = df) +
 df %>% 
     select(general_health) %>% 
     skim() %>% 
-    skimr::kable(caption = 'General health: summary statistics')
+    yank('numeric') %>% 
+    select(-hist, -complete_rate) %>% 
+    kable(caption = 'General health: summary statistics')
 
 # Mode
 xtabs(~general_health, data = df) %>% 
-    knitr::kable(caption = 'General health: modal distribution')
+    kable(caption = 'General health: modal distribution')
 ```
 
 ----

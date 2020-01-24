@@ -12,6 +12,7 @@ library(tidyverse)
 library(magrittr)
 library(ggthemes)
 library(patchwork)
+library(knitr)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -23,10 +24,12 @@ if(!dir.exists('./figures/script-2c')) {
 }
 
 # ggplot theme
-theme_set(new = theme_bw(base_size = 20))
+theme_set(new = theme_bw(base_size = 16))
 
 # knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-2c/')
+opts_chunk$set(warning = FALSE,
+               message = FALSE, 
+               fig.path = './figures/script-2c/')
 ```
 
 ----
@@ -50,7 +53,7 @@ For analysis purposes, missing data in the _site of pain_ columns were changed t
 ```{r import}
 df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
     select(ranid, interval_name, pain_in_the_last_week, 
-           cd4_cells.ul, viral_load_cp.ml,
+           cd4_cells.ul, viral_load_cp.ml, general_health,
            any_missing, interval_numeric)
 ```
 
@@ -83,7 +86,7 @@ xtabs(~interval_name, data = df)
 
 # Analysis
 
-## Prepare summary data for tabulation and plotting
+## Prepare summary data for tabulation
 
 ```{r prepare}
 # Pain in the last week
@@ -95,9 +98,21 @@ df_pain <- as.data.frame(xtabs(~interval_name + pain_in_the_last_week,
     mutate(proportion = round(count / total, 3)) %>% 
     filter(pain_in_the_last_week == 'Yes') 
 
-# Viral load
-df_vl <- df %>% 
+# CD4 (by pain status)
+df_cd4 <- df %>% 
     group_by(interval_name) %>% 
+    summarise(missing = sum(is.na(cd4_cells.ul)),
+              median = median(cd4_cells.ul, na.rm = TRUE),
+              Q25 = quantile(cd4_cells.ul, probs = 0.25, na.rm = TRUE),
+              Q75 = quantile(cd4_cells.ul, probs = 0.75, na.rm = TRUE),
+              min = min(cd4_cells.ul, na.rm = TRUE),
+              max = max(cd4_cells.ul, na.rm = TRUE)) 
+
+df_cd4 <- df_cd4[c(1, 3, 5), ] # weeks 0, 12, 48
+
+# Viral load (by pain status)
+df_vl <- df %>% 
+    group_by(interval_name, pain_in_the_last_week) %>% 
     mutate(viral_load_cp.ml = ifelse(viral_load_cp.ml < 50,
                                      yes = 50,
                                      no = viral_load_cp.ml)) %>% 
@@ -108,63 +123,35 @@ df_vl <- df %>%
               min = min(viral_load_cp.ml, na.rm = TRUE),
               max = max(viral_load_cp.ml, na.rm = TRUE)) 
 
-# CD4
-df_cd4 <- df %>% 
-    group_by(interval_name) %>% 
-    summarise(missing = sum(is.na(cd4_cells.ul)),
-              median = median(cd4_cells.ul, na.rm = TRUE),
-              Q25 = quantile(cd4_cells.ul, probs = 0.25, na.rm = TRUE),
-              Q75 = quantile(cd4_cells.ul, probs = 0.75, na.rm = TRUE),
-              min = min(cd4_cells.ul, na.rm = TRUE),
-              max = max(cd4_cells.ul, na.rm = TRUE)) 
-
-df_cd4 <- df_cd4[c(1, 3, 5), ]
+# general health (by pain status)
+df_gh <- df %>% 
+    group_by(interval_name, pain_in_the_last_week) %>% 
+    summarise(missing = sum(is.na(general_health)),
+              median = median(general_health, na.rm = TRUE),
+              Q25 = quantile(general_health, probs = 0.25, na.rm = TRUE),
+              Q75 = quantile(general_health, probs = 0.75, na.rm = TRUE),
+              min = min(general_health, na.rm = TRUE),
+              max = max(general_health, na.rm = TRUE)) 
 ```
 
-## Tabulate
+## Pain proportion
 
-```{r tabulate}
+```{r pain_proportion}
 # Pain
 df_pain %>% 
-  knitr::kable(caption = 'Proportion with pain in the last week')
-
-# CD4
-df_cd4 %>% 
-  knitr::kable(caption = '5-number summary of CD4 T-cell count (cells/ul)')
-
-# Viral load
-df_vl %>% 
-  knitr::kable(caption = '5-number summary of viral load (copies/ml)')
+  kable(caption = 'Proportion with pain in the last week')
 ```
 
-----
+## CD4
 
-# Bivarite plots
+```{r cd4_tabulate}
+# Tabulate CD4 (by pain status)
+df_cd4 %>% 
+  kable(caption = '5-number summary of CD4 T-cell count (cells/ul) by pain status')
+```
 
-```{r bivariate}
-# Viral load
-p_vl <- df %>% 
-    select(interval_name, pain_in_the_last_week, viral_load_cp.ml) %>% 
-    ggplot(data = .) +
-    aes(y = viral_load_cp.ml, 
-        x = interval_name,
-        fill = pain_in_the_last_week) +
-    geom_boxplot(key_glyph = "rect") +
-    labs(title = 'HIV-1 RNA viral load ',
-         y = expression('Viral load (log'[10]~'copies/ml)'),
-         x = 'Weeks') +
-    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
-    scale_y_log10() +
-    scale_fill_tableau(name = 'Pain: ') +
-    theme(plot.margin = margin(t = 4,l= 1, r = 1, b = 1, "lines"),
-          legend.direction = 'horizontal',
-          legend.position = c(0.5, 1.25),
-          axis.title = element_text(size = 22),
-          plot.title = element_text(size = 22),
-          axis.text = element_text(size = 22),
-          panel.grid = element_blank()); p_vl
-
-# CD4
+```{r cd4_plot, fig.height = 6}
+# Plot CD4 (by pain status)
 p_cd4 <- df %>% 
     select(interval_name, interval_numeric, 
            pain_in_the_last_week, cd4_cells.ul) %>% 
@@ -175,17 +162,67 @@ p_cd4 <- df %>%
     aes(y = cd4_cells.ul, 
         x = interval_name,
         fill = pain_in_the_last_week) +
-    geom_boxplot() +
+    geom_boxplot(key_glyph = "rect") +
     labs(title = 'CD4 T-cell count',
          y = expression('CD4 count (cells/mm'^3*')'),
          x = 'Weeks') +
     scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
-    scale_fill_tableau(name = 'Pain in the\nlast week') +
-    theme(legend.position = 'none',
-          axis.title = element_text(size = 22),
-          plot.title = element_text(size = 22),
-          axis.text = element_text(size = 22),
+    scale_fill_tableau(name = 'Pain in the last week') +
+    theme(legend.position = 'top',
           panel.grid = element_blank()); p_cd4
+```
+
+## Viral load
+
+```{r vl_tabulate}
+# Tabulate viral load (by pain status)
+df_vl %>% 
+  kable(caption = '5-number summary of viral load (copies/ml) by pain status')
+```
+
+```{r vl_plot, fig.height = 6}
+# Plot viral load (by pain status)
+p_vl <- df %>% 
+    select(interval_name, pain_in_the_last_week, viral_load_cp.ml) %>% 
+    ggplot(data = .) +
+    aes(y = viral_load_cp.ml, 
+        x = interval_name,
+        fill = pain_in_the_last_week) +
+    geom_boxplot(key_glyph = "rect") +
+    labs(title = 'HIV-1 RNA viral load ',
+         y = expression('Viral load [log'[10]*'(copies/ml)]'),
+         x = 'Weeks') +
+    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
+    scale_y_log10() +
+    scale_fill_tableau(name = 'Pain: ') +
+    theme(legend.position = 'top',
+          panel.grid = element_blank()); p_vl
+```
+
+## General health
+
+```{r gh_tabulate}
+# Tabulate general health (by pain status)
+df_gh %>% 
+  kable(caption = '5-number summary of general health (0-5 rating scale) by pain status')
+```
+
+```{r gh_plot, fig.height = 6.5}
+# Plot general health (by pain status)
+p_gh <- df %>% 
+    select(interval_name, pain_in_the_last_week, general_health) %>% 
+    ggplot(data = .) +
+    aes(y = general_health, 
+        x = interval_name,
+        fill = pain_in_the_last_week) +
+    geom_boxplot(key_glyph = "rect") +
+    labs(title = 'General health',
+         y = 'General health (0-5 rating scale)',
+         x = 'Weeks') +
+    scale_x_discrete(labels = c('0', '12', '24', '36', '48')) +
+    scale_fill_tableau(name = 'Pain: ') +
+    theme(legend.position = 'top',
+          panel.grid = element_blank()); p_gh
 ```
 
 ----

@@ -1,0 +1,317 @@
+---
+title: "Script 5b"
+subtitle: "Repeated pain sites"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(knitr)
+```
+
+----
+
+# Objective
+
+To determine whether a pain site was repeated at the time-point preceding or following the time-point the site registered as the site of worst pain.
+
+# Analysis notes
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst, 
+           site_worst, ends_with('_pain'), any_missing, interval_numeric) 
+```
+
+# Quick look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean
+
+```{r clean}
+# Clean and process data
+df %<>% 
+    filter(any_missing == 'No') %>% 
+    select(-any_missing)
+```
+
+# Quick tabulation
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick_tab}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+
+----
+
+# Prepare "pain present" filters
+
+```{r filters}
+# Generate the pain sequences 
+df_sequence <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week) %>% 
+    mutate(pain_in_the_last_week = as.character(pain_in_the_last_week)) %>% 
+    pivot_wider(names_from = interval_name,
+                values_from = pain_in_the_last_week) %>% 
+    unite(col = 'sequence', -ranid, sep = ' ') %>% 
+    mutate(any_pain = str_detect(sequence, pattern = 'Yes'))
+
+# Extract sequences
+df_yes <- df_sequence %>%
+    mutate(yes_2 = str_detect(sequence, pattern = 'Yes Yes')) %>%
+    mutate(yes_3 = str_detect(sequence, pattern = 'Yes Yes Yes')) %>% 
+    mutate(yes_4 = str_detect(sequence, pattern = 'Yes Yes Yes Yes'))
+
+# Create filters
+vec_filter_2yes <- df_yes %>% 
+    filter(yes_2 == TRUE) %>% 
+    .$ranid
+
+vec_filter_3yes <- df_yes %>% 
+    filter(yes_3 == TRUE) %>% 
+    .$ranid
+
+vec_filter_4yes <- df_yes %>% 
+    filter(yes_4 == TRUE) %>% 
+    .$ranid
+```
+
+----
+
+# Prepare pain sites
+
+```{r pain_sites}
+# Convert 'Yes' to site name
+df_sites <- df %>% 
+    mutate(head_pain = ifelse(head_pain == 'Yes',
+                              yes = 'Head',
+                              no = 'No')) %>% 
+    mutate(cervical_pain = ifelse(cervical_pain == 'Yes',
+                                  yes = 'Neck',
+                                  no = 'No')) %>% 
+    mutate(shoulder_pain = ifelse(shoulder_pain == 'Yes',
+                                  yes = 'Shoulder',
+                                  no = 'No')) %>% 
+    mutate(arm_pain = ifelse(arm_pain == 'Yes',
+                             yes = 'Arm',
+                             no = 'No')) %>% 
+    mutate(hand_pain = ifelse(hand_pain == 'Yes',
+                              yes = 'Hand',
+                              no = 'No')) %>% 
+    mutate(chest_pain = ifelse(chest_pain == 'Yes',
+                               yes = 'Chest',
+                               no = 'No')) %>% 
+    mutate(abdominal_pain = ifelse(abdominal_pain == 'Yes',
+                                   yes = 'Abdomen',
+                                   no = 'No')) %>% 
+    mutate(low_back_pain = ifelse(low_back_pain == 'Yes',
+                                  yes = 'Low back',
+                                  no = 'No')) %>% 
+    mutate(buttock_pain = ifelse(buttock_pain == 'Yes',
+                                 yes = 'Buttocks',
+                                 no = 'No')) %>% 
+    mutate(hip_groin_pain = ifelse(hip_groin_pain == 'Yes',
+                                   yes = 'Hip/groin',
+                                   no = 'No')) %>% 
+    mutate(leg_pain = ifelse(leg_pain == 'Yes',
+                             yes = 'Leg',
+                             no = 'No')) %>% 
+    mutate(genital_pain = ifelse(genital_pain == 'Yes',
+                                 yes = 'Genitals',
+                                 no = 'No')) %>% 
+    mutate(foot_pain = ifelse(foot_pain == 'Yes',
+                              yes = 'Feet',
+                              no = 'No')) %>% 
+    select(-pain_worst, -interval_numeric)
+
+# Unite *_pain per week and then pivot wider based on week
+df_united <- df_sites %>% 
+    unite(col = 'sites' , 
+          ends_with('_pain'), 
+          sep = ' ', ) %>% 
+    pivot_wider(names_from = interval_name,
+                values_from = sites) %>% 
+    filter(pain_in_the_last_week != 'No') %>% 
+    group_by(ranid) %>% 
+    # Fill up and down so that you look at time periods preceding and following
+    # the week when a pain site was listed as the worst site of pain
+    fill(ends_with('weeks'), .direction = 'updown')
+```
+
+----
+
+# Extract and analyse data
+
+## 2 adjacent yes' ONLY
+
+```{r extract_2yes}
+# 2 yes's in a row ONLY
+df_2yes <- df_united %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(!ranid %in% vec_filter_3yes) %>% 
+    filter(ranid %in% vec_filter_2yes)
+
+# Find repeats
+df_2duplicates <- df_2yes %>% 
+    # Replace <NA> with explicit NA (weeks when there is no pain)
+    mutate_at(vars(ends_with('weeks')), 
+              str_replace_na) %>% 
+    # Unite the weeks columns, separating with a '-'
+    unite(col = 'united', 
+          ends_with('weeks'), 
+          sep = '-') %>% 
+    # Now separate the column based on NAs
+    # This will result in contiguous 'pain' blocks seperated by weeks of no pain 
+    separate(col = united,
+             into = c('block_1', 'block_2', 'block_3', 'block_4', 'block_5'),
+             sep = 'NA') %>% 
+    # Within each block, count how many times a worst pain site occurs
+    # (even if it is not listed as a worst pain site on the other occasions)
+    mutate(count_1 = str_count(block_1, site_worst),
+           count_2 = str_count(block_2, site_worst),
+           count_3 = str_count(block_3, site_worst),
+           count_4 = str_count(block_4, site_worst),
+           count_5 = str_count(block_5, site_worst)) %>% 
+    filter(count_1 > 1 | count_2 > 1 | count_3 > 1 | count_4 > 1 | count_5 > 1) %>% 
+    select(ranid, site_worst, starts_with('count'))
+
+kable(df_2duplicates,
+      caption = 'Participants with 2 sequential occurences of a pain')
+
+# Number of unique participants with a sequence of 2 sequential occurences of a pain
+length(unique(df_2duplicates$ranid))
+
+# Number of unique participants with ONLY 2 yes' in a row
+length(unique(df_2yes$ranid))
+
+# Proportion of participants with worst pain repeated in an adjacent time block
+## Irrespective of whether the worst pain was the worst pain again. 
+round(length(unique(df_2duplicates$ranid)) / length(unique(df_2yes$ranid)), 2)
+```
+
+## 3 adjacent yes' ONLY
+
+```{r extract_3yes}
+# At least 3 yes's in a row
+df_3yes <- df_united %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(ranid %in% vec_filter_3yes) 
+
+# Find repeats
+df_3duplicates <- df_3yes %>% 
+    # Replace <NA> with explicit NA (weeks when there is no pain)
+    mutate_at(vars(ends_with('weeks')), 
+              str_replace_na) %>% 
+    # Unite the weeks columns, separating with a '-'
+    unite(col = 'united', 
+          ends_with('weeks'), 
+          sep = '-') %>% 
+    # Now separate the column based on NAs
+    # This will result in contiguous 'pain' blocks seperated by weeks of no pain 
+    separate(col = united,
+             into = c('block_1', 'block_2', 'block_3', 'block_4', 'block_5'),
+             sep = 'NA') %>% 
+    # Within each block, count how many times a worst pain site occurs
+    # (even if it is not listed as a worst pain site on the other occasions)
+    mutate(count_1 = str_count(block_1, site_worst),
+           count_2 = str_count(block_2, site_worst),
+           count_3 = str_count(block_3, site_worst),
+           count_4 = str_count(block_4, site_worst),
+           count_5 = str_count(block_5, site_worst)) %>% 
+    filter(count_1 > 1 | count_2 > 1 | count_3 > 1 | count_4 > 1 | count_5 > 1) %>% 
+    select(ranid, site_worst, starts_with('count'))
+
+kable(df_3duplicates,
+      caption = 'Participants with 2 or 3 sequential occurences of a pain')
+
+# Number of unique participants with a sequence of 2 sequential occurences of a pain
+length(unique(df_3duplicates$ranid))
+
+# Number of unique participants with ONLY 3 yes' in a row
+length(unique(df_3yes$ranid))
+
+# Proportion of participants with worst pain repeated in an adjacent time block
+## Irrespective of whether the worst pain was the worst pain again. 
+round(length(unique(df_3duplicates$ranid)) / length(unique(df_3yes$ranid)), 2)
+```
+
+## 4 adjacent yes' ONLY
+
+```{r extract_4yes}
+# 4 yes's in a row ONLY
+df_4yes <- df_united %>% 
+    filter(ranid %in% vec_filter_4yes)
+
+# Find repeats
+df_4duplicates <- df_4yes %>% 
+    # Replace <NA> with explicit NA (weeks when there is no pain)
+    mutate_at(vars(ends_with('weeks')), 
+              str_replace_na) %>% 
+    # Unite the weeks columns, separating with a '-'
+    unite(col = 'united', 
+          ends_with('weeks'), 
+          sep = '-') %>% 
+    # Now separate the column based on NAs
+    # This will result in contiguous 'pain' blocks seperated by weeks of no pain 
+    separate(col = united,
+             into = c('block_1', 'block_2', 'block_3', 'block_4', 'block_5'),
+             sep = 'NA') %>% 
+    # Within each block, count how many times a worst pain site occurs
+    # (even if it is not listed as a worst pain site on the other occasions)
+    mutate(count_1 = str_count(block_1, site_worst),
+           count_2 = str_count(block_2, site_worst),
+           count_3 = str_count(block_3, site_worst),
+           count_4 = str_count(block_4, site_worst),
+           count_5 = str_count(block_5, site_worst)) %>% 
+    filter(count_1 > 1 | count_2 > 1 | count_3 > 1 | count_4 > 1 | count_5 > 1) %>% 
+    select(ranid, site_worst, starts_with('count'))
+
+kable(df_4duplicates, 
+      caption = 'Participants with 2 or more sequential occurences of a pain')
+
+# Number of unique participants with a sequence of 2 sequential occurences of a pain
+length(unique(df_4duplicates$ranid))
+
+# Number of unique participants with 4 or 5 yes' in a row
+length(unique(df_4yes$ranid))
+
+# Proportion of participants with worst pain repeated in an adjacent time block
+## Irrespective of whether the worst pain was the worst pain again. 
+round(length(unique(df_4duplicates$ranid)) / length(unique(df_4yes$ranid)), 2)
+```
+
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```

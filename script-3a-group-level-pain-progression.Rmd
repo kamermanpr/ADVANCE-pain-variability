@@ -1,6 +1,6 @@
 ---
 title: "Script 3a"
-subtitle: "Pain progression: summary data"
+subtitle: "Pain progression: group data"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 geometry: margin=15mm
@@ -14,6 +14,7 @@ library(ggalluvial)
 library(ggthemes)
 library(boot)
 library(patchwork)
+library(knitr)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -24,11 +25,10 @@ if(!dir.exists('./figures/script-3a')) {
     dir.create('./figures/script-3a/')
 }
 
-# ggplot theme
-theme_set(new = theme_bw(base_size = 18))
-
 # knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-3a/')
+opts_chunk$set(warning = FALSE,
+               message = FALSE,
+               fig.path = './figures/script-3a/')
 ```
 
 ----
@@ -170,8 +170,8 @@ tab_prop3 <- tab_prop1 %>%
     mutate(time_weeks = factor(time_weeks))
     
 # Tabulate
-knitr::kable(tab_prop3, 
-             caption = 'Estimate and 95% CI of the proportion with pain by week')
+kable(tab_prop3, 
+      caption = 'Estimate and 95% CI of the proportion with pain by week')
 ```
 
 ## Point plot with 95% CI: All
@@ -198,7 +198,7 @@ ggplot(data = tab_prop3) +
 # Breaks
 n <- length(unique(df$ranid))
 
-# Generate plot
+# Generate plot for publication
 sankey_plot1 <- ggplot(data = df_sankey) +
     aes(x = factor(time_weeks),
         stratum = pain_in_the_last_week, 
@@ -216,10 +216,14 @@ sankey_plot1 <- ggplot(data = df_sankey) +
          y = 'Proportion of participants') +
     theme_minimal(base_size = 20) +
     theme(legend.position = 'top',
-          panel.grid.minor = element_blank()); sankey_plot1
+          panel.grid.minor = element_blank())
 
-# Generate sankey plot for potential publication plot
-sankey_plot2 <- ggplot(data = df_sankey) +
+# Save plot
+ggsave(filename = 'figures/figure-2.png', sankey_plot1, 
+       width = 10.2, height = 7.72)
+
+# Generate plot for knitr output
+ggplot(data = df_sankey) +
     aes(x = factor(time_weeks),
         stratum = pain_in_the_last_week, 
         alluvium = ranid,
@@ -234,36 +238,9 @@ sankey_plot2 <- ggplot(data = df_sankey) +
     scale_x_discrete(expand = c(0.06, 0)) +
     labs(x = 'Time (weeks)',
          y = 'Proportion of participants') +
-    theme_minimal(base_size = 20) +
+    theme_minimal(base_size = 16) +
     theme(legend.position = 'top',
-          panel.grid.minor = element_blank(),
-          axis.text.x = element_blank(),
-          axis.title.x = element_blank())
-
-# Generate participant-level plot for potential publication plot
-plot_individual <- df %>% 
-    group_by(interval_name) %>% 
-    mutate(id = row_number()) %>% 
-    ggplot(.) +
-    aes(x = factor(time_weeks),
-        y = id) +
-    geom_tile(aes(fill = pain_in_the_last_week),
-              width = 0.35) +
-    scale_fill_tableau() +
-    labs(x = 'Time (weeks)',
-         y = 'Participant number') +
-    scale_x_discrete(expand = c(0.06, 0)) +
-    theme_minimal(base_size = 20) +
-    theme(legend.position = 'none',
           panel.grid.minor = element_blank())
-
-# Patchwork plot
-plot_patchwork <- sankey_plot2 + plot_individual + 
-    plot_layout(ncol = 1) + plot_annotation(tag_levels = 'A')
-
-# Save plots
-ggsave(filename = 'figures/figure-2.png', sankey_plot1, 
-       width = 10.2, height = 7.72)
 ```
 
 ## Sankey plot 2: Pain at enrolment
@@ -292,7 +269,7 @@ sankey_plot2 <- df_sankey %>%
          subtitle = str_glue("(n = {length(unique(df$ranid[df$pain_at_enrolment == 'Yes']))})"),
          x = 'Time (weeks)',
          y = 'Proportion of participants') +
-    theme_minimal(base_size = 20) +
+    theme_minimal(base_size = 16) +
     theme(legend.position = 'top'); sankey_plot2 
 ```
 
@@ -322,15 +299,15 @@ sankey_plot3 <- df_sankey %>%
          subtitle = str_glue("(n = {length(unique(df$ranid[df$pain_at_enrolment == 'No']))})"),
          x = 'Time (weeks)',
          y = 'Proportion of participants') +
-    theme_minimal(base_size = 20) +
+    theme_minimal(base_size = 16) +
     theme(legend.position = 'top'); sankey_plot3
 ```
 
 ----
 
-# Number of people transitioning between pain states at each time interval
+# Number of people transitioning between pain states at each time period
 
-## Separate time intervals
+## Separate time points
 
 ```{r transition_1}
 # Week 0 to 12
@@ -371,7 +348,7 @@ t0.12 %>%
     summarise(count = n()) %>% 
     mutate(prop = count / length(unique(df$ranid)),
            percent = 100 * round(prop, 3)) %>% 
-    knitr::kable(caption = 'Pain transitions: week 0 to 12')
+    kable(caption = 'Pain transitions: week 0 to 12')
 
 # Week 12 to 24
 t12.24 %>% 
@@ -387,7 +364,7 @@ t12.24 %>%
     summarise(count = n()) %>% 
     mutate(prop = count / length(unique(df$ranid)),
            percent = 100 * round(prop, 3)) %>% 
-    knitr::kable(caption = 'Pain transitions: week 12 to 24')
+    kable(caption = 'Pain transitions: week 12 to 24')
 
 # Week 24 to 36
 t24.36 %>% 
@@ -403,7 +380,7 @@ t24.36 %>%
     summarise(count = n()) %>% 
     mutate(prop = count / length(unique(df$ranid)),
            percent = 100 * round(prop, 3)) %>% 
-    knitr::kable(caption = 'Pain transitions: week 24 to 36')
+    kable(caption = 'Pain transitions: week 24 to 36')
 
 # Week 36 to 48
 t36.48 %>% 
@@ -419,7 +396,7 @@ t36.48 %>%
     summarise(count = n()) %>% 
     mutate(prop = count / length(unique(df$ranid)),
            percent = 100 * round(prop, 3)) %>% 
-    knitr::kable(caption = 'Pain transitions: week 36 to 38')
+    kable(caption = 'Pain transitions: week 36 to 38')
 ```
 
 ----

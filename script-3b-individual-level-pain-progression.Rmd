@@ -12,6 +12,7 @@ library(tidyverse)
 library(magrittr)
 library(ggthemes)
 library(patchwork)
+library(knitr)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -22,11 +23,10 @@ if(!dir.exists('./figures/script-3b')) {
     dir.create('./figures/script-3b/')
 }
 
-# ggplot theme
-theme_set(new = theme_bw(base_size = 18))
-
 # knitr options
-knitr::opts_chunk$set(fig.path = './figures/script-3b/')
+opts_chunk$set(warning = FALSE,
+               message = FALSE,
+               fig.path = './figures/script-3b/')
 ```
 
 ----
@@ -89,45 +89,9 @@ xtabs(~interval_name, data = df)
 
 ## Plot summary data vs participant-level data
 
-```{r pain_per_visit, fig.height = 9, fig.width = 7}
-# Breaks
-n <- length(unique(df$ranid))
-
-# Generate summary plot (for potential publication plot)
-plot_summary <- ggplot(data = df) +
-    aes(factor(time_weeks), 
-        fill = pain_in_the_last_week) +
-    geom_bar(width = 0.95) + 
-    scale_fill_tableau(name = 'Pain in the last week: ') +
-    scale_y_continuous(breaks = c(n * 0, n * 0.2, n * 0.4, n * 0.6, n * 0.8, n),
-                       labels = c('0.0', '0.2', '0.4', '0.6', '0.8', '1.0')) +
-    labs(x = 'Time (weeks)',
-         y = 'Proportion of participants') +
-    theme_minimal(base_size = 20) +
-    theme(legend.position = 'top',
-          legend.title = element_text(size = 16),
-          legend.text = element_text(size = 16),
-          panel.grid.minor = element_blank(),
-          axis.text.x = element_blank(),
-          axis.title.x = element_blank())
-
-# Generate participant-level plot (for potential publication plot)
+```{r pain_per_visit, fig.height = 6}
+# Generate participant-level plot
 plot_individual <- df %>% 
-    group_by(interval_name) %>% 
-    mutate(id = row_number()) %>% 
-    ggplot(.) +
-    aes(x = factor(time_weeks),
-        y = id) +
-    geom_tile(aes(fill = pain_in_the_last_week),
-              width = 0.95) +
-    scale_fill_tableau(name = 'Pain in the last week: ') +
-    labs(x = 'Time (weeks)',
-         y = 'Number of participants') +
-    theme_minimal(base_size = 20) +
-    theme(legend.position = 'none',
-          panel.grid.minor = element_blank())
-
-plot_individual2 <- df %>% 
     group_by(interval_name) %>% 
     mutate(id = row_number()) %>% 
     ggplot(.) +
@@ -138,20 +102,9 @@ plot_individual2 <- df %>%
     scale_fill_tableau(name = 'Pain in the last week: ') +
     labs(x = 'Time (weeks)',
          y = 'Number of participants') +
-    theme_minimal(base_size = 20) +
+    theme_minimal(base_size = 16) +
     theme(legend.position = 'top',
-          panel.grid.minor = element_blank())
-
-# Patchwork plot
-plot_patchwork <- plot_summary + plot_individual + 
-    plot_layout(ncol = 1) + plot_annotation(tag_levels = 'A')
-
-# Plot output
-plot_patchwork
-
-# Save outcome
-# ggsave(filename = 'figures/figure-x.png', plot_individual2,
-#        width = 10.2, height = 7.72)
+          panel.grid.minor = element_blank()); plot_individual
 ```
 
 ## Tabulate pain progression patterns
@@ -173,8 +126,8 @@ df_xtab <- as.data.frame(xtabs(~sequence, data = df_sequence)) %>%
     mutate(percent = round(100 * frequency / sum(frequency), 2))
 
 # Print table
-knitr::kable(df_xtab, 
-             caption = 'Pain in the last week for weeks 0, 12, 24, 36 and 48')
+kable(df_xtab, 
+      caption = 'Pain in the last week for weeks 0, 12, 24, 36 and 48')
 ```
 
 ## Number of sequences with 'yes' in series
@@ -224,32 +177,32 @@ df_5yes <- df_yes %>%
     filter(ranid %in% vec_filter_5yes)
     
 # Sequences with 2 'yes' in series ONLY
-knitr::kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
-                        'value' = c(round(sum(df_2yes$yes_2)), 
-                                    round(100 * (sum(df_2yes$yes_2) / 
-                                                     sum(df_xtab$frequency)), 2))),
-             caption = "Sequences with 2 'yes' (pain present) in series")
+kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
+                  'value' = c(round(sum(df_2yes$yes_2)), 
+                              round(100 * (sum(df_2yes$yes_2) / 
+                                               sum(df_xtab$frequency)), 2))),
+      caption = "Sequences with 2 'yes' (pain present) in series")
 
 # Sequences with 3 'yes' (pain present) in series ONLY
-knitr::kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
-                        'value' = c(round(sum(df_3yes$yes_3)), 
-                                    round(100 * (sum(df_3yes$yes_3) / 
-                                                     sum(df_xtab$frequency)), 2))),
-             caption = "Sequences with 3 'yes' (pain present) in series")
+kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
+                 'value' = c(round(sum(df_3yes$yes_3)), 
+                             round(100 * (sum(df_3yes$yes_3) /
+                                              sum(df_xtab$frequency)), 2))),
+      caption = "Sequences with 3 'yes' (pain present) in series")
 
 # Sequences with 4 'yes' (pain present) in series ONLY
-knitr::kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
-                        'value' = c(round(sum(df_4yes$yes_4)), 
-                                    round(100 * (sum(df_4yes$yes_4) / 
-                                                     sum(df_xtab$frequency)), 2))),
-             caption = "Sequences with at least 4 'yes' (pain present) in series")
+kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
+                 'value' = c(round(sum(df_4yes$yes_4)), 
+                             round(100 * (sum(df_4yes$yes_4) / 
+                                              sum(df_xtab$frequency)), 2))),
+      caption = "Sequences with at least 4 'yes' (pain present) in series")
 
 # Sequences with at least 5 'yes' (pain present) in series
-knitr::kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
-                        'value' = c(round(sum(df_5yes$yes_5)), 
-                                    round(100 * (sum(df_5yes$yes_5) / 
-                                                     sum(df_xtab$frequency)), 2))),
-             caption = "Sequences with at least 5 'yes' (pain present) in series")
+kable(data.frame('type' = c('Sequence count', 'Percent of total sequences'),
+                 'value' = c(round(sum(df_5yes$yes_5)), 
+                             round(100 * (sum(df_5yes$yes_5) / 
+                                              sum(df_xtab$frequency)), 2))),
+      caption = "Sequences with at least 5 'yes' (pain present) in series")
 
 # Number of participants with isolated pain
 787 - sum(c(393,79, 20, 4, 1))

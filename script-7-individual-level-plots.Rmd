@@ -1,0 +1,651 @@
+---
+title: "Script 7"
+subtitle: "Individual-level publication plots"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(patchwork)
+library(ggthemes)
+library(knitr)
+
+# Set figures directory
+if(!dir.exists('./figures')) {
+    dir.create('./figures/')
+}
+
+if(!dir.exists('./figures/script-7')) {
+    dir.create('./figures/script-7/')
+}
+
+# knitr options
+opts_chunk$set(warning = FALSE,
+               message = FALSE,
+               fig.path = './figures/script-7/')
+```
+
+----
+
+# Analysis notes
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, pain_in_the_last_week, pain_worst, 
+           site_worst, ends_with('_pain'), any_missing, interval_numeric) 
+```
+
+# Quick look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean
+
+```{r clean}
+# Clean and process data
+df %<>% 
+    filter(any_missing == 'No') %>% 
+    select(-any_missing) 
+```
+
+# Quick tabulation
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick_tab}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+
+----
+
+# Prepare "pain present" filters
+
+```{r filters}
+# Generate the pain sequences 
+df_sequence <- df %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    select(ranid, interval_name, pain_in_the_last_week) %>% 
+    mutate(pain_in_the_last_week = as.character(pain_in_the_last_week)) %>% 
+    pivot_wider(names_from = interval_name,
+                values_from = pain_in_the_last_week) %>% 
+    unite(col = 'sequence', -ranid, sep = ' ') %>% 
+    mutate(any_pain = str_detect(sequence, pattern = 'Yes'))
+
+# Extract sequences
+df_yes <- df_sequence %>%
+    mutate(yes_2 = str_detect(sequence, pattern = 'Yes Yes')) %>%
+    mutate(yes_3 = str_detect(sequence, pattern = 'Yes Yes Yes')) %>% 
+    mutate(yes_4 = str_detect(sequence, pattern = 'Yes Yes Yes Yes'))
+
+# Create filters
+vec_filter_2yes <- df_yes %>% 
+    filter(yes_2 == TRUE) %>% 
+    .$ranid
+
+vec_filter_3yes <- df_yes %>% 
+    filter(yes_3 == TRUE) %>% 
+    .$ranid
+
+vec_filter_4yes <- df_yes %>% 
+    filter(yes_4 == TRUE) %>% 
+    .$ranid
+```
+
+# Extract data 
+
+## Pain intensity and affected sites
+
+```{r extract_1}
+## 2 yes's in a row ONLY
+df_2yes <- df %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(!ranid %in% vec_filter_3yes) %>% 
+    filter(ranid %in% vec_filter_2yes) %>% 
+    mutate(intensity = case_when(
+        pain_worst == 0 ~ 'None',
+        pain_worst > 0 & pain_worst < 4 ~ 'Mild',
+        pain_worst > 3 & pain_worst < 8 ~ 'Moderate',
+        pain_worst > 7 & pain_worst <= 10 ~ 'Severe'
+    ),
+    intensity = factor(intensity,
+                       levels = c('None', 'Mild', 'Moderate', 'Severe'),
+                       ordered = TRUE)) %>% 
+    mutate(site_worst = factor(site_worst,
+                               levels = c('None', 'Abdomen', 'Arm', 'Buttocks', 'Chest',
+                                          'Feet', 'Genitals', 'Hand', 'Head',
+                                          'Hip/groin', 'Leg', 'Low back', 
+                                          'Neck', 'Shoulder'),
+                               ordered = TRUE))
+
+## 3 yes's in a row ONLY
+df_3yes <- df %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(ranid %in% vec_filter_3yes) %>% 
+    mutate(intensity = case_when(
+        pain_worst == 0 ~ 'None',
+        pain_worst > 0 & pain_worst < 4 ~ 'Mild',
+        pain_worst > 3 & pain_worst < 8 ~ 'Moderate',
+        pain_worst > 7 & pain_worst <= 10 ~ 'Severe'
+    ),
+    intensity = factor(intensity,
+                       levels = c('None', 'Mild', 'Moderate', 'Severe'),
+                       ordered = TRUE)) %>% 
+    mutate(site_worst = factor(site_worst,
+                               levels = c('None', 'Abdomen', 'Arm', 'Buttocks', 'Chest',
+                                          'Feet', 'Genitals', 'Hand', 'Head',
+                                          'Hip/groin', 'Leg', 'Low back', 
+                                          'Neck', 'Shoulder'),
+                               ordered = TRUE))
+
+## At least 4 yes's in a row
+df_4yes <- df %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(ranid %in% vec_filter_4yes) %>% 
+    mutate(intensity = case_when(
+        pain_worst == 0 ~ 'None',
+        pain_worst > 0 & pain_worst < 4 ~ 'Mild',
+        pain_worst > 3 & pain_worst < 8 ~ 'Moderate',
+        pain_worst > 7 & pain_worst <= 10 ~ 'Severe'
+    ),
+    intensity = factor(intensity,
+                       levels = c('None', 'Mild', 'Moderate', 'Severe'),
+                       ordered = TRUE)) %>% 
+    mutate(site_worst = factor(site_worst,
+                               levels = c('None', 'Abdomen', 'Arm', 'Buttocks', 'Chest',
+                                          'Feet', 'Genitals', 'Hand', 'Head',
+                                          'Hip/groin', 'Leg', 'Low back', 
+                                          'Neck', 'Shoulder'),
+                               ordered = TRUE))
+```
+
+## Number of pain sites
+
+```{r extract_2}
+df_long <- df %>% 
+    pivot_longer(cols = ends_with('_pain'),
+                 names_to = 'site',
+                 values_to = 'values') 
+    
+
+df_number <- df_long %>% 
+    group_by(ranid, interval_name) %>% 
+    nest() %>% 
+    mutate(logical = map(.x = data,
+                         ~ .x %>% 
+                             mutate(values = ifelse(values == 'Yes',
+                                                    yes = TRUE,
+                                                    no = FALSE)))) %>% 
+    mutate(summary = map(.x = logical,
+                         ~ .x %>% 
+                             summarise(total = sum(values, na.rm = TRUE)))) %>% 
+    select(-data, -logical) %>% 
+    unnest(summary) %>% 
+    ungroup() 
+
+df_pain <- df %>% 
+    select(ranid, interval_name, pain_in_the_last_week)
+
+df_number %<>% 
+    left_join(df_pain)
+
+# Print summary table
+df_number %>% 
+    group_by(interval_name) %>% 
+    nest() %>% 
+    mutate(filtered = map(.x = data,
+                          ~ .x %>% 
+                              filter(total > 0))) %>% 
+    select(-data) %>% 
+    unnest(filtered) %>% 
+    group_by(interval_name) %>% 
+    summarise(mean = round(mean(total, na.rm = TRUE), 2),
+              SD = round(sd(total, na.rm = TRUE), 2),
+              median = median(total, na.rm = TRUE),
+              Q25 = quantile(total, probs = 0.25, na.rm = TRUE),
+              Q75 = quantile(total, probs = 0.75, na.rm = TRUE),
+              min = min(total, na.rm = TRUE),
+              max = max(total, na.rm = TRUE)) %>% 
+    kable(caption = 'Mean number of pain sites in people with pain')
+
+# 2 yes's in a row ONLY
+df_ns_2yes <- df_number %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(!ranid %in% vec_filter_3yes) %>% 
+    filter(ranid %in% vec_filter_2yes) %>% 
+    mutate(total_text = ifelse(total > 4,
+                               yes = '>4',
+                               no = as.character(total)),
+           total_text = ifelse(total_text == '0',
+                               yes = 'None',
+                               no = total_text), 
+           total_text = factor(total_text, 
+                               levels = c('None', as.character(1:4), '>4'), 
+                               ordered = TRUE))
+# 3 yes's in a row ONLY
+df_ns_3yes <- df_number %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(!ranid %in% vec_filter_4yes) %>% 
+    filter(ranid %in% vec_filter_3yes) %>% 
+    mutate(total_text = ifelse(total > 4,
+                               yes = '>4',
+                               no = as.character(total)),
+           total_text = ifelse(total_text == '0',
+                               yes = 'None',
+                               no = total_text), 
+           total_text = factor(total_text, 
+                               levels = c('None', as.character(1:4), '>4'), 
+                               ordered = TRUE))
+
+# At least 4 yes's in a row 
+df_ns_4yes <- df_number %>% 
+    mutate(interval_name = fct_drop(interval_name)) %>% 
+    filter(ranid %in% vec_filter_4yes) %>% 
+    mutate(total_text = ifelse(total > 4,
+                               yes = '>4',
+                               no = as.character(total)),
+           total_text = ifelse(total_text == '0',
+                               yes = 'None',
+                               no = total_text), 
+           total_text = factor(total_text, 
+                               levels = c('None', as.character(1:4), '>4'), 
+                               ordered = TRUE))
+```
+
+----
+
+# Pain continuity
+
+```{r pain_continuity}
+# Clean and process data
+df_continuity <- df %>% 
+    rename(time_weeks = interval_numeric)
+
+# Plot
+plot_individual <- df_continuity %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(time_weeks),
+        y = id) +
+    geom_tile(aes(fill = pain_in_the_last_week),
+              width = 1) +
+    scale_fill_tableau(name = 'Pain in the last week: ') +
+    labs(x = 'Time (weeks)',
+         y = 'Number of participants') +
+    theme_minimal(base_size = 20) +
+    theme(legend.position = 'top',
+          panel.grid.minor = element_blank()); plot_individual
+
+# Save plot
+ggsave(filename = 'figures/figure-3.png', 
+       plot = plot_individual,
+       height = 7.72,
+       width = 10.2)
+```
+
+# Pain intensity heatmaps
+
+```{r intensity_plots}
+# At least 2 yes's in a row
+p_intensity2_legend <- df_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = intensity), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain intensity: ', 
+                       values = c('#FFFFFF', '#ffeda0','#feb24c','#f03b20'),
+                       guide = guide_legend(ncol = 4)) + 
+    labs(subtitle = str_glue('At least 2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    scale_x_discrete(expand = c(0, 0)) +
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'top',
+          legend.title = element_blank(),
+          axis.text.y = element_blank(),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          panel.grid = element_blank()); p_intensity2_legend
+
+p_intensity2 <- df_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = intensity), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain intensity: ', 
+                       values = c('#FFFFFF', '#ffeda0','#feb24c','#f03b20'),
+                       guide = guide_legend(ncol = 4)) + 
+    labs(subtitle = str_glue('2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    scale_x_discrete(expand = c(0, 0)) +
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.y = element_blank(),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          panel.grid = element_blank()); p_intensity2
+
+# At least 3 yes's in a row
+p_intensity3 <- df_3yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = intensity), colour = '#FFFFFF', size = 1, width = 1) +
+    scale_fill_manual(name = 'Pain intensity: ', 
+                       values = c('#FFFFFF', '#ffeda0','#feb24c','#f03b20'),
+                       guide = guide_legend(ncol = 4)) + 
+    labs(subtitle = str_glue('3 consecutive pain ratings > 0 (n = {length(unique(df_3yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    scale_y_continuous(breaks = 1:length(unique(df_3yes$ranid)),
+                       labels = 1:length(unique(df_3yes$ranid))) +
+    scale_x_discrete(expand = c(0, 0)) +
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          panel.grid = element_blank()); p_intensity3
+
+# At least 4 yes's in a row
+p_intensity4 <- df_4yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = intensity), colour = '#FFFFFF', size = 1, width = 1) +
+    scale_fill_manual(name = 'Pain intensity: ', 
+                       values = c('#FFFFFF', '#ffeda0','#feb24c','#f03b20'),
+                       guide = guide_legend(ncol = 4)) + 
+    labs(subtitle = str_glue('At least 4 consecutive pain ratings > 0 (n = {length(unique(df_4yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) +
+    scale_y_continuous(breaks = 1:length(unique(df_4yes$ranid)),
+                       labels = 1:length(unique(df_4yes$ranid))) +
+    scale_x_discrete(expand = c(0, 0)) +
+    theme(legend.position = 'none',
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.title.x = element_text(size = 22),
+          axis.text.x = element_text(size = 22, vjust = 2),
+          axis.text.y = element_blank(),
+          panel.grid = element_blank()); p_intensity4
+
+# Patchwork
+pw_intensity <- p_intensity2 + p_intensity3 + p_intensity4 + 
+    plot_layout(ncol = 1, heights = c(2, 2, 0.5)) + 
+    plot_annotation(title = 'Intensity of pain at its worst', 
+                    tag_levels = 'A')
+
+# Save
+ggsave(filename = 'figures/figure-4a.png', pw_intensity, height = 20, width = 10)
+```
+
+# Number of pain sites heatmaps
+
+```{r number_plots}
+# At least 2 yes's in a row 
+p_number2_legend <- df_ns_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_name), 
+        y = id) +
+    geom_tile(aes(fill = total_text), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(values = c('#FFFFFF', '#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'),
+                      name = 'Number of pains: ', 
+                      guide = guide_legend(ncol = 6)) + 
+    labs(subtitle = str_glue('2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'top',
+          legend.title = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_number2_legend
+
+p_number2 <- df_ns_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_name), 
+        y = id) +
+    geom_tile(aes(fill = total_text), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(values = c('#FFFFFF', '#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'),
+                      name = 'Number of pains: ', 
+                      guide = guide_legend(ncol = 3)) + 
+    labs(subtitle = str_glue('2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_number2
+
+# At least 3 yes's in a row 
+p_number3 <- df_ns_3yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_name), 
+        y = id) +
+    geom_tile(aes(fill = total_text), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(values = c('#FFFFFF', '#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'),
+                      name = 'Number of pains: ', 
+                      guide = guide_legend(ncol = 3)) + 
+    labs(subtitle = str_glue('3 consecutive pain ratings > 0 (n = {length(unique(df_3yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    scale_y_continuous(breaks = 1:length(unique(df_3yes$ranid)),
+                       labels = 1:length(unique(df_3yes$ranid))) +
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_number3
+
+# At least 4 yes's in a row 
+p_number4 <- df_ns_4yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_name), 
+        y = id) +
+    geom_tile(aes(fill = total_text), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(values = c('#FFFFFF', '#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'),
+                      name = 'Number of pains: ', 
+                      guide = guide_legend(ncol = 3)) + 
+    scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
+    scale_y_continuous(breaks = 1:length(unique(df_4yes$ranid)),
+                       labels = c(2, 5, 7, 8, 19)) +
+    labs(subtitle = str_glue('At least 4 consecutive pain ratings > 0 (n = {length(unique(df_4yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.title.x = element_text(size = 22),
+          axis.text.x = element_text(size = 22, vjust = 2),
+          axis.text.y = element_blank(),
+          panel.grid = element_blank()); p_number4
+
+# Patchwork
+pw_number <- p_number2 + p_number3 + p_number4 + 
+    plot_layout(ncol = 1, heights = c(2, 2, 0.5)) +
+    plot_annotation(title = 'Number of pain sites',
+                    tag_levels = 'A')
+
+# Save
+ggsave(filename = 'figures/figure-4b.png', pw_number, height = 20, width = 10)
+```
+
+# Pain sites heatmaps
+
+```{r sites_plots}
+# At least 2 yes's in a row
+p_sites2_legend <- df_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = site_worst), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain site: ',
+                      values = c('#FFFFFF', '#4E79A7', '#A0CBE8', '#F28E2B', 
+                                 '#FFBE7D', '#59A14F', '#8CD17D', '#B6992D', 
+                                 '#F1CE63', '#499894', '#86BCB6', '#E15759', 
+                                 '#FF9D9A', '#79706E'),
+                       guide = guide_legend(ncol = 5)) + 
+    labs(subtitle = str_glue('2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'top',
+          legend.title = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_sites2_legend
+
+p_sites2 <- df_2yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = site_worst), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain site: ',
+                      values = c('#FFFFFF', '#4E79A7', '#A0CBE8', '#F28E2B', 
+                                 '#FFBE7D', '#59A14F', '#8CD17D', '#B6992D', 
+                                 '#F1CE63', '#499894', '#86BCB6', '#E15759', 
+                                 '#FF9D9A', '#79706E'),
+                       guide = guide_legend(ncol = 5)) + 
+    labs(subtitle = str_glue('2 consecutive pain ratings > 0 (n = {length(unique(df_2yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_sites2
+
+# At least 3 yes's in a row
+p_sites3 <- df_3yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = site_worst), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain site: ', 
+                       values = c('#FFFFFF', '#4E79A7', '#A0CBE8', '#F28E2B',
+                                  '#FFBE7D', '#59A14F', '#F1CE63', '#499894', 
+                                  '#86BCB6', '#E15759', '#FF9D9A', '#79706E'),
+                       guide = guide_legend(ncol = 4)) + 
+    labs(subtitle = str_glue('3 consecutive pain ratings > 0 (n = {length(unique(df_3yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    scale_y_continuous(breaks = 1:length(unique(df_3yes$ranid)),
+                       labels = 1:length(unique(df_3yes$ranid))) +
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.text.y = element_blank(),
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
+          panel.grid = element_blank()); p_sites3
+
+# At least 4 yes's in a row
+p_sites4 <- df_4yes %>% 
+    group_by(interval_name) %>% 
+    mutate(id = row_number()) %>% 
+    ggplot(.) +
+    aes(x = factor(interval_numeric), 
+        y = id) +
+    geom_tile(aes(fill = site_worst), colour = '#FFFFFF', width = 0.98) +
+    scale_fill_manual(name = 'Pain site: ', 
+                      values = c('#FFFFFF', '#A0CBE8', '#F28E2B', '#FFBE7D', 
+                                 '#59A14F', '#F1CE63', '#86BCB6', '#E15759', 
+                                 '#FF9D9A', '#79706E'),
+                       guide = guide_legend(ncol = 4)) + 
+    scale_y_continuous(breaks = 1:length(unique(df_4yes$ranid)),
+                       labels = 1:length(unique(df_4yes$ranid))) +
+    labs(subtitle = str_glue('At least 4 consecutive pain ratings > 0 (n = {length(unique(df_4yes$ranid))})'),
+         x = 'Time (weeks)',
+         y = 'Participants') + 
+    theme_minimal(base_size = 20) + 
+    theme(legend.position = 'none',
+          axis.title.y = element_text(size = 22, vjust = 2),
+          axis.title.x = element_text(size = 22),
+          axis.text.x = element_text(size = 22, vjust = 2),
+          axis.text.y = element_blank(),
+          panel.grid = element_blank()); p_sites4
+
+# Patchwork
+pw_sites <- p_sites2 + p_sites3 + p_sites4 + 
+    plot_layout(ncol = 1, heights = c(2, 2, 0.5)) +
+    plot_annotation(title = 'Site of worst pain',
+                    tag_levels = 'A')
+
+# Save
+ggsave(filename = 'figures/figure-4c.png', pw_sites, height = 20, width = 10)
+```
+
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```

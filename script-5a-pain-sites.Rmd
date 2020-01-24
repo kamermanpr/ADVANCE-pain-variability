@@ -1,0 +1,144 @@
+---
+title: "Script 5a"
+subtitle: "Pain sites"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(knitr)
+```
+
+----
+
+# Analysis notes
+
+_Knee_ pain was recoded as part of _Leg_ pain.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, pain_in_the_last_week, 
+           any_missing, ends_with('_pain'))
+```
+
+# First look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean data
+
+```{r clean}
+# Extract those participants with no missing data and who had pain
+df %<>%
+  filter(any_missing == 'No') %>% 
+  select(-any_missing) %>% 
+  filter(pain_in_the_last_week == 'Yes')
+  
+```
+
+# Quick tabulation
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick_tab}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+----
+
+# Tabulate pain sites at each visit
+
+```{r pain_sites_per_visit}
+df_sites <- df %>% 
+    # Nest by interval_name
+    group_by(interval_name) %>% 
+    nest() %>% 
+    arrange(interval_name) %>% 
+    # Gather pain sites columns
+    mutate(data_long = map(.x = data,
+                           ~ .x %>% 
+                             pivot_longer(cols = ends_with('_pain'),
+                                          names_to = 'site',
+                                          values_to = 'presence'))) %>% 
+    # Determine pain sites
+    mutate(data_prop = map(.x = data_long,
+                           ~ .x %>% 
+                               # Generate counts per site
+                               group_by(site, presence) %>% 
+                               summarise(count = n()) %>% 
+                               group_by(site) %>% 
+                               # calculate proportion with a particular pain site
+                               mutate(total = sum(count),
+                                      prop = round(count / total, 3)) %>% 
+                               arrange(presence, desc(prop))))
+    
+
+walk2(.x = df_sites$data_prop, 
+      .y = df_sites$interval_name, 
+      ~print(kable(.x, 
+                   caption = .y)))
+```
+
+----
+
+# Number of pain sites
+
+`missing` refers to the number of participants who indicated that they had pain (and had a worst pain $>$ 0) but had with no _'Yes'_ for any of the pain sites. 
+
+```{r number_of_sites}
+df_number <- df_sites %>% 
+  mutate(data_number = map(.x = data_long,
+                           ~ .x %>% 
+                             filter(presence == 'Yes') %>% 
+                             group_by(ranid) %>% 
+                             summarise(count = n()))) %>% 
+  mutate(data_summarised = map2(.x = data_number,
+                                .y = data,
+                               ~ .x %>% 
+                                 summarise(n = nrow(.y),
+                                           mean = round(mean(count), 2),
+                                           sd = round(sd(count), 2),
+                                           median = median(count),
+                                           Q25 = quantile(count, probs = 0.25),
+                                           Q75 = quantile(count, probs = 0.75),
+                                           min = min(count),
+                                           max = max(count))))
+
+walk2(.x = df_number$data_summarised, 
+      .y = df_number$interval_name, 
+      ~print(kable(.x, 
+                   caption = .y)))
+```
+
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```
