@@ -10,12 +10,12 @@ Data and analysis scripts for an exploratory comparison of group-level changes i
 
 ## Reproducibility
 
-For reproducibility we have built a Docker image with the environment used to run the scripts:  
+For reproducibility we have built a docker image with the environment used to run the scripts:  
 [kamermanpr/docker-pain-variability](https://hub.docker.com/repository/docker/kamermanpr/docker-pain-variability)
 
 ### Using Docker to run the scripts
 
-You need to have Docker installed on your computer. To do so, go to [docker.com](https://www.docker.com/community-edition#/download) and follow the instructions for downloading and installing Docker for your operating system. Once Docker has been installed, follow the steps below, noting that Docker commands are entered in a terminal window (Linux and OSX/macOS) or command prompt window (Windows). 
+You need to have docker installed on your computer. To do so, go to [docker.com](https://www.docker.com/community-edition#/download) and follow the instructions for downloading and installing docker for your operating system. Once Docker has been installed, follow the steps below, noting that Docker commands are entered in a terminal window (Linux and OSX/macOS) or command prompt window (Windows). 
 
 #### Download the latest image
 
@@ -39,4 +39,4 @@ _TO BE ADDED_
 
 #### Shutting down
 
-Once done, log out of RStudio Server and enter the following into a terminal to stop the Docker container: `docker stop pain`. If you then want to remove the container, enter: `docker rm pain`. If you also want to remove the Docker image you downloaded, enter: `docker rmi kamermanpr/docker-pain-variability`
+Once done, log out of RStudio Server and enter the following into a terminal to stop the docker container: `docker stop pain`. If you then want to remove the container, enter: `docker rm pain`. If you also want to remove the docker image you downloaded, enter: `docker rmi kamermanpr/docker-pain-variability`
