@@ -1,5 +1,5 @@
 ---
-title: "Script 2b"
+title: "Supplement 2"
 subtitle: "Descriptive stats at each time interval"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
@@ -18,8 +18,8 @@ if(!dir.exists('./figures')) {
     dir.create('./figures/')
 }
 
-if(!dir.exists('./figures/script-2b')) {
-    dir.create('./figures/script-2b/')
+if(!dir.exists('./figures/supplement-2')) {
+    dir.create('./figures/supplement-2/')
 }
 
 # ggplot theme
@@ -28,7 +28,7 @@ theme_set(new = theme_bw(base_size = 16))
 # knitr options
 opts_chunk$set(warning = FALSE,
                message = FALSE, 
-               fig.path = './figures/script-2b/')
+               fig.path = './figures/supplement-2/')
 ```
 
 ----

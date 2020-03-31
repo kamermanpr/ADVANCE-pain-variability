@@ -1,0 +1,358 @@
+---
+title: "Supplement 1"
+subtitle: "Data missingness"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(skimr)
+library(ggforce)
+library(knitr)
+
+# Set figures directory
+if(!dir.exists('./figures')) {
+    dir.create('./figures/')
+}
+
+if(!dir.exists('./figures/supplement-1')) {
+    dir.create('./figures/supplement-1/')
+}
+
+# ggplot theme
+theme_set(new = theme_bw(base_size = 16))
+
+# Knitr options
+opts_chunk$set(warning = FALSE,
+               message = FALSE, 
+               fig.path = './figures/supplement-1/')
+```
+
+----
+
+# Objective
+
+To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), or clinical variables (CD4, viral load).
+
+# Analysis notes
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present at the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds')
+```
+
+# Quick look
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+----
+
+# Number of participants with/without complete pain data
+
+```{r missing_count}
+df_pain <- df %>%  
+    select(ranid, any_missing) %>% 
+    distinct()
+
+df_pain %>% 
+    group_by(any_missing) %>% 
+    summarise(count = n()) %>%
+    mutate(n = sum(count),
+           proportion = round(count / n, 3)) %>% 
+    kable(caption = 'Number of participants with/without complete pain data')
+```
+
+----
+
+# Demographic variables
+
+## Process data
+
+```{r process_demo}
+# Extract demographic data
+df_demo <- df %>% 
+    select(ranid, any_missing, age, sex, ancestry, 
+           education, employment_status) %>% 
+    distinct()
+
+# Join df_pain and df_demo
+df_combined <- df_pain %>% 
+    left_join(df_demo)
+```
+
+## Ancestry
+
+```{r ancestry}
+# Check counts
+df_combined %>% 
+    group_by(ancestry) %>% 
+    summarise(count = n()) %>% 
+    kable(caption = 'Count within each category of self-identified ancestry')
+```
+
+Only 2 out of 1053 participants did not identify and Black African, and therefore no analysis done on ancestry.
+
+## Sex
+
+```{r sex}
+# Tabulate and print
+df_combined %>% 
+    group_by(sex, any_missing) %>% 
+    summarise(count = n()) %>% 
+    group_by(sex) %>% 
+    mutate(total = sum(count),
+           proportion = round(count / total,3)) %>% 
+    kable(caption = 'Missing pain data by sex')
+
+# Tabulate, plot, and test
+tab_sex <- xtabs(~any_missing + sex, data = df_combined)
+
+mosaicplot(tab_sex, main = 'Counts by sex')
+
+prop_sex <- prop.table(tab_sex, 2)
+
+mosaicplot(prop_sex, main = 'Proportions by sex')
+
+fisher.test(tab_sex)
+```
+
+## Education
+
+```{r education}
+# Tabulate and print
+df_combined %>% 
+    mutate(education = fct_explicit_na(education)) %>% 
+    group_by(education, any_missing) %>% 
+    summarise(count = n()) %>% 
+    group_by(education) %>% 
+    mutate(total = sum(count),
+           proportion = round(count / total,3)) %>% 
+    kable(caption = 'Missing pain data by level of education')
+
+# Tabulate, plot, and test
+tab_edu <- df_combined %>% 
+    mutate(education = ifelse(education == 'No schooling',
+                              yes = 'None',
+                              no = education)) %>% 
+    xtabs(~any_missing + education, data = .)
+
+mosaicplot(tab_edu, main = 'Counts by level of education')
+
+prop_edu <- prop.table(tab_edu, 2)
+
+mosaicplot(prop_edu, main = 'Proportions by level of education')
+
+fisher.test(tab_edu)
+```
+
+## Employment status
+
+```{r employment}
+# Tabulate and print
+df_combined %>% 
+    mutate(employment_status = fct_explicit_na(employment_status)) %>% 
+    group_by(employment_status, any_missing) %>% 
+    summarise(count = n()) %>% 
+    group_by(employment_status) %>% 
+    mutate(total = sum(count),
+           proportion = round(count / total,3)) %>% 
+    kable(caption = 'Missing pain data by employment status')
+
+# Tabulate, plot, and test
+tab_employ <- df_combined %>% 
+    mutate(employment_status = ifelse(employment_status == 'Schooling',
+                                      yes = 'In school',
+                                      no = employment_status)) %>% 
+    xtabs(~any_missing + employment_status, data = .)
+
+mosaicplot(tab_employ, main = 'Counts by employment status')
+
+prop_employ <- prop.table(tab_employ, 2)
+
+mosaicplot(prop_employ, main = 'Proportions by employment status')
+
+fisher.test(tab_employ)
+```
+
+Those who were unemployed had the greatest proportion of missing values.
+
+----
+
+# Clinical variables
+
+## CD4 T-cell count
+
+`low_CD4` defined as the lowest CD4 T-cell count measured during the course of the first 48 weeks of the study. 
+
+```{r cd4}
+# Process the CD4 data and join with missingness data
+df_CD4 <- df %>% 
+    select(ranid, interval_name, cd4_cells.ul) %>% 
+    # Determine highest VL per participant
+    group_by(ranid) %>% 
+    summarise(low_CD4 = min(cd4_cells.ul, na.rm = TRUE))
+
+df_CD4 <- df_combined %>% 
+    select(ranid, any_missing) %>% 
+    left_join(df_CD4)
+
+# Tabulate and print
+df_CD4 %>% 
+    group_by(any_missing) %>% 
+    select(any_missing, low_CD4) %>% 
+    skim() %>% 
+    select(-numeric.hist, -complete_rate) %>% 
+    yank('numeric') %>% 
+    kable(caption = 'Data missingness by lowest CD4')
+    
+# Plot, and test
+ggplot(data = df_CD4) +
+    aes(x = any_missing,
+        y = low_CD4) +
+    geom_sina() +
+    labs(subtitle = 'Data missingness vs lowest CD4')
+
+wilcox.test(low_CD4 ~ any_missing, 
+            data = df_CD4)
+```
+
+## Viral load
+
+`high_VL` defined as the highest viral load measured during the course of the first 48 weeks of the study. 
+
+```{r vl}
+# Process the VL data and join with missingness data
+df_VL <- df %>% 
+    select(ranid, interval_name, viral_load_cp.ml) %>% 
+    # Determine highest VL per participant
+    group_by(ranid) %>% 
+    summarise(high_VL = max(viral_load_cp.ml, na.rm = TRUE))
+
+df_VL <- df_combined %>% 
+    select(ranid, any_missing) %>% 
+    left_join(df_VL)
+
+# Tabulate and print
+df_VL %>% 
+    group_by(any_missing) %>% 
+    select(any_missing, high_VL) %>% 
+    skim() %>% 
+    select(-numeric.hist, -complete_rate) %>% 
+    yank('numeric') %>% 
+    kable(caption = 'Data missingness by greatest viral load') 
+    
+# Plot, and test
+ggplot(data = df_VL) +
+    aes(x = any_missing,
+        y = log10(high_VL)) +
+    geom_sina() +
+    labs(subtitle = 'Data missingness vs highest viral load')
+
+wilcox.test(high_VL ~ any_missing, 
+            data = df_VL)
+```
+
+----
+
+# Study variables
+
+## Proportion missing pain data by study site
+
+```{r site}
+# Tabulate and print
+df %>% 
+    filter(interval_name == '0 weeks') %>% 
+    group_by(site_name, any_missing) %>% 
+    summarise(count = n()) %>% 
+    group_by(site_name) %>% 
+    mutate(total = sum(count),
+           proportion = round(count / total,3)) %>% 
+    kable(caption = 'Proportion missing pain data by study site')
+
+# Tabulate, plot, and test
+tab_site <- df %>% 
+    filter(interval_name == '0 weeks') %>% 
+    mutate(site_name = ifelse(site_name == 'Wits RHI Yeoville Research Centre',
+                              yes = 'Yeoville',
+                              no = 'Hillbrow')) %>% 
+    xtabs(~any_missing + site_name, data = .)
+
+mosaicplot(tab_site, main = 'Counts by study site')
+
+prop_site <- prop.table(tab_site, 2)
+
+mosaicplot(prop_site, main = 'Proportion of counts by study site')
+
+chisq.test(tab_site)
+```
+
+## Proportion missing pain data by group allocation
+
+- GROUP 1: DTG + TAF + FTC
+
+- GROUP 2: DTG + TDF + FTC
+
+- GROUP 3: EFV + TDF + FTC
+
+```{r group}
+# Tabulate and print
+df %>% 
+    filter(interval_name == '0 weeks') %>% 
+    group_by(group, any_missing) %>% 
+    summarise(count = n()) %>% 
+    group_by(group) %>% 
+    mutate(total = sum(count),
+           proportion = round(count / total,3)) %>% 
+    kable(caption = 'Proportion missing pain data by group allocation')
+
+# Tabulate, plot, and test
+tab_group <- df %>% 
+    filter(interval_name == '0 weeks') %>% 
+    mutate(group = case_when(
+        str_detect(group, 'EFV') ~ 'GROUP 3',
+        str_detect(group, 'TDF') ~ 'GROUP 2',
+        str_detect(group, 'TAF') ~ 'GROUP 1'
+    )) %>% 
+    xtabs(~any_missing + group, data = .)
+
+mosaicplot(tab_group, main = 'Counts by group allocation',
+           ylab = 'Allocation')
+
+prop_group <- prop.table(tab_group, 2)
+
+mosaicplot(prop_group, main = 'Proportions by group allocation',
+           ylab = 'Allocation')
+
+fisher.test(tab_group)
+```
+
+----
+
+# Session information
+
+```{r sessioninfo}
+sessionInfo()
+```
