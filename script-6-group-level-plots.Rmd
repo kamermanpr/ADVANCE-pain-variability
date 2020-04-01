@@ -13,6 +13,7 @@ library(magrittr)
 library(ggthemes)
 library(patchwork)
 library(knitr)
+library(ggtext)
 
 
 # Set figures directory
@@ -148,7 +149,7 @@ p_proportion <- df_proportion %>%
     aes(x = interval_name,
         y = proportion) +
     geom_point(size = 8) +
-    labs(title = 'Proportion with pain',
+    labs(title = 'A: Proportion with pain',
          y = 'Proportion',
          x = 'Time (weeks)') +
     scale_y_continuous(limits = c(0, 0.2), 
@@ -169,7 +170,7 @@ p_intensity <- df_intensity %>%
     aes(x = interval_name,
         y = pain_worst) +
     geom_boxplot() +
-    labs(title = 'Intensity of the worst pain',
+    labs(title = 'B: Intensity of the worst pain',
          y = 'Pain intensity',
          x = 'Time (weeks)') +
     scale_y_continuous(limits = c(0, 10), 
@@ -202,7 +203,7 @@ p_sites <- sites %>%
     aes(x = interval_name,
         y = sum) +
     geom_boxplot() +
-    labs(title = 'Number of pain sites',
+    labs(title = 'C: Number of pain sites',
          y = 'Count',
          x = 'Time (weeks)') +
     scale_y_continuous(limits = c(0, 10), 
@@ -243,14 +244,14 @@ p_prevalence <- ggplot(data = prevalence) +
         y = key,
         fill = key) +
     geom_tile(colour = '#FFFFFF', size = 1) +
-    labs(title = 'Common pain sites',
+    labs(title = 'D: Common pain sites',
          subtitle = expression('(prevalence '>='10%)'),
          x = 'Time (weeks)') +
     scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
-    scale_fill_manual(values = rep(c('#1170aa', '#a3acb9'), 3)) +
+    scale_fill_manual(values = rep(c('#1170aa'), 6)) +
     theme(legend.position = 'none',
           plot.title = element_text(size = 22),
-          plot.subtitle = element_text(size = rel(0.8)),
+          plot.subtitle = element_text(size = rel(1)),
           legend.title = element_blank(),
           axis.title.y = element_blank(),
           axis.title.x = element_text(size = 22),
@@ -286,15 +287,15 @@ p_worst_sites <- df_worst_site %>%
         fill = site_worst) +
     geom_tile(colour = '#FFFFFF',
               size = 1) +
-    labs(title = 'Sites of the worst pain', 
+    labs(title = 'D: Sites of the worst pain', 
          subtitle = expression('(prevalence '>='10%)'),
          y = 'Proportion',
          x = 'Time (weeks)') +
     scale_x_discrete(labels = as.character(c(0, 12, 24, 36, 48))) +
-    scale_fill_manual(values = rep(c('#1170aa', '#a3acb9'), 3)) +
+    scale_fill_manual(values = rep(c('#1170aa'), 6)) +
     theme(legend.position = 'none',
           plot.title = element_text(size = 22),
-          plot.subtitle = element_text(size = rel(0.8)),
+          plot.subtitle = element_text(size = rel(1)),
           legend.title = element_blank(),
           axis.title.y = element_blank(),
           axis.title.x = element_text(size = 22),
@@ -309,7 +310,7 @@ p_worst_sites <- df_worst_site %>%
 ```{r patchwork}
 # With p_prevalence
 pp_plot2 <- p_proportion + p_intensity + p_sites + p_worst_sites + 
-    plot_layout(ncol = 2) + plot_annotation(tag_levels = 'A')
+    plot_layout(ncol = 2)
 
 ggsave(x = pp_plot2, 
        filename = 'figures/figure-1.png', 

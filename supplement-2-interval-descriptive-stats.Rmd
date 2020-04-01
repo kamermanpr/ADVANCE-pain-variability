@@ -1,6 +1,6 @@
 ---
 title: "Supplement 2"
-subtitle: "Descriptive stats at each time interval"
+subtitle: "Statistics at each time period"
 author: "Peter Kamerman"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 geometry: margin=15mm
@@ -12,6 +12,7 @@ library(tidyverse)
 library(magrittr)
 library(skimr)
 library(knitr)
+library(broom)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -35,7 +36,7 @@ opts_chunk$set(warning = FALSE,
 
 # Objective 
 
-To describe the demographic characteristics and disease status of the analysis cohort at each study time point.
+To describe the pain characteristics (analysis cohort and stratified by data missingness), demographic characteristics (analysis cohort only), and disease status (analysis cohort only) at each time point.
 
 # Analysis notes
 
@@ -52,7 +53,6 @@ Data also were considered **inconsistent** when _pain in the last week_ = 'Yes',
 Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
 
 For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
-
 
 ----
 
@@ -76,6 +76,15 @@ glimpse(df)
 
 ```{r clean}
 # Clean and process data
+df_pain <- df %>%  
+    select(ranid, any_missing) %>% 
+    distinct()
+
+pain_nested <- df %>% 
+    select(ranid, interval_name, pain_worst, any_missing) %>% 
+    group_by(interval_name) %>% 
+    nest() 
+
 df %<>% 
     filter(any_missing == 'No') %>% 
     select(-any_missing)
@@ -94,8 +103,167 @@ xtabs(~interval_name, data = df)
 
 # Analysis
 
-## Pain frequency by group
-```{r pain_freq, fig.height = 6}
+## Number of participants with/without complete pain data
+
+```{r missing_count}
+df_pain %>% 
+    group_by(any_missing) %>% 
+    summarise(count = n()) %>%
+    mutate(n = sum(count),
+           proportion = round(count / n, 3)) %>% 
+    kable(caption = 'Number of participants with/without missing pain data')
+```
+
+## Pain frequency at each week, by data missingness
+
+### Number of participants with pain at each interval
+
+```{r numbers_pain, results = 'asis'}
+pain_nested <- pain_nested  %>% 
+    mutate(numbers = map2(.x = data,
+                          .y = interval_name,
+                         ~ .x %>%
+                             mutate(pain_status = ifelse(pain_worst > 0,
+                                                      yes = 'pain',
+                                                      no = 'no pain')) %>% 
+                             group_by(any_missing, pain_status) %>% 
+                             summarise(count = n()) %>%
+                             mutate(pain_status = ifelse(is.na(pain_status),
+                                                         yes = 'Missing pain intensity data',
+                                                         no = pain_status)) %>% 
+                             group_by(any_missing) %>% 
+                             mutate(total = sum(count),
+                                    proportion = round(count / total, 2)) %>% 
+                             kable(caption = str_glue('{str_to_sentence(.y)}: Number of participants with/without missing pain data and who had pain > 0'))))
+
+walk(.x = pain_nested$numbers, ~print(.x))
+```
+
+### Plot of pain frequency at each interval
+
+```{r freq_pain_plot}
+pain_nested <- pain_nested %>% 
+    mutate(xtab = map2(.x = data,
+                       .y = interval_name,
+                      ~ .x %>% 
+                          filter(!is.na(pain_worst)) %>% 
+                          mutate(pain_status = ifelse(pain_worst > 0,
+                                                      yes = 'pain',
+                                                      no = 'no pain')) %>% 
+                          xtabs(~ any_missing + pain_status, data = .)))
+
+mosaicplot(pain_nested$xtab[[1]], 
+            main = '0 weeks',
+            xlab = 'Any missing pain data',
+            ylab = 'Pain status')
+
+mosaicplot(pain_nested$xtab[[2]], 
+            main = '12 weeks',
+            xlab = 'Any missing pain data',
+            ylab = 'Pain status')
+
+mosaicplot(pain_nested$xtab[[3]], 
+            main = '24 weeks',
+            xlab = 'Any missing pain data',
+            ylab = 'Pain status')
+
+mosaicplot(pain_nested$xtab[[4]], 
+            main = '36 weeks',
+            xlab = 'Any missing pain data',
+            ylab = 'Pain status')
+
+mosaicplot(pain_nested$xtab[[5]], 
+            main = '48 weeks',
+            xlab = 'Any missing pain data',
+            ylab = 'Pain status')
+```
+
+### Chi-squared test of pain frequency at each interval
+
+```{r chi_freq, results = 'asis'}
+pain_nested <- pain_nested %>% 
+    mutate(chisq = map2(.x = data,
+                        .y = interval_name,
+                       ~ .x %>% 
+                           filter(!is.na(pain_worst)) %>% 
+                           mutate(pain_status = ifelse(pain_worst > 0,
+                                                       yes = 'pain',
+                                                       no = 'no pain')) %>% 
+                           xtabs(~ any_missing + pain_status, data = .) %>% 
+                           chisq.test(.) %>% 
+                           tidy(.) %>% 
+                           kable(caption = str_glue('{str_to_sentence(.y)}: missing data by pain frequency'))))
+
+walk(.x = pain_nested$chisq, ~print(.x))
+```
+
+## Pain intensity at each week, by data missingness
+
+### Pain intensity at each interval
+
+```{r intensity_pain, results = 'asis'}
+pain_nested <- pain_nested %>% 
+    mutate(intensity = map2(.x = data,
+                            .y = interval_name,
+                            ~ .x %>% 
+                                filter(pain_worst > 0) %>% 
+                                group_by(any_missing) %>% 
+                                summarise(median = median(pain_worst),
+                                          Q25 = quantile(pain_worst, probs = 0.25),
+                                          Q75 = quantile(pain_worst, probs = 0.75)) %>%
+                                kable(caption = str_glue('{str_to_sentence(.y)}: Mean IQR pain intensity of participants with/without missing pain data and who had pain > 0'))))
+
+walk(.x = pain_nested$intensity, ~print(.x))
+```
+
+### Plot of pain intensity at each interval
+
+```{r plot_pain}
+pain_nested <- pain_nested %>% 
+    mutate(plot = map2(.x = data,
+                       .y = interval_name,
+                       ~ .x %>% 
+                           filter(pain_worst > 0) %>% 
+                           ggplot(data = .) +
+                           aes(x = any_missing,
+                               y = pain_worst) +
+                           geom_boxplot() +
+                           geom_point(shape = 21,
+                                      size = 3,
+                                      fill = '#000000',
+                                      alpha = 0.5,
+                                      position = position_jitter(height = 0, 
+                                                                 width = 0.3)) +
+                           labs(title = str_glue('{.y}'),
+                                x = 'Any missing data',
+                                y = 'Worst pain (11-point NRS)') +
+                           scale_y_continuous(limits = c(0, 10))))
+
+print(pain_nested$plot[[1]])
+print(pain_nested$plot[[2]])
+print(pain_nested$plot[[3]])
+print(pain_nested$plot[[4]])
+print(pain_nested$plot[[5]])
+```
+
+### Wilcoxon sum rank test of pain intensity at each interval
+
+```{r wilcox_pain, results = 'asis'}
+pain_nested <- pain_nested %>% 
+    mutate(wilcox = map2(.x = data,
+                         .y = interval_name,
+                         ~ .x %>% 
+                             filter(pain_worst > 0) %>% 
+                             wilcox.test(data = ., pain_worst ~ any_missing) %>% 
+                             tidy(.) %>%
+                             kable(caption = str_glue('{str_to_sentence(.y)}: missing pain data by pain > 0'))))
+
+walk(.x = pain_nested$wilcox, ~print(.x))
+```
+
+## Pain frequency by treatment group allocation
+
+```{r pain_freq, fig.height = 6, results = 'asis'}
 # Process data
 freq <- df %>% 
   select(interval_name, group, pain_in_the_last_week) %>% 
@@ -137,9 +305,9 @@ walk2(.x = xfreq$chi,
 
 No clean pattern in proportion with pain across groups.
 
-## Pain intensity by group
+## Pain intensity by treatment group allocation
 
-```{r pain_intensity, fig.height = 6}
+```{r pain_intensity, fig.height = 6, results = 'asis'}
 # Process data
 intensity <- df %>% 
   select(interval_name, group, pain_worst) %>% 

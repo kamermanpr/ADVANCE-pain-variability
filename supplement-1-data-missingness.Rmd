@@ -12,6 +12,7 @@ library(tidyverse)
 library(skimr)
 library(ggforce)
 library(knitr)
+library(broom)
 
 # Set figures directory
 if(!dir.exists('./figures')) {
@@ -35,7 +36,9 @@ opts_chunk$set(warning = FALSE,
 
 # Objective
 
-To determine whether the degree of missingness or data inconsistencies were associated with any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), or clinical variables (CD4, viral load).
+To determine whether the degree of missingness or data inconsistencies were associated with baseline (week 0) differences in any demographic variables (age, sex, ancestry, education, employment status), study variables (study site and group allocation), or clinical variables (CD4, viral load).
+
+See Supplement 2 for differences in pain characteristics at baseline (week 0 ) and across time.
 
 # Analysis notes
 
@@ -82,7 +85,7 @@ df_pain %>%
     summarise(count = n()) %>%
     mutate(n = sum(count),
            proportion = round(count / n, 3)) %>% 
-    kable(caption = 'Number of participants with/without complete pain data')
+    kable(caption = 'Number of participants with/without missing pain data')
 ```
 
 ----
@@ -132,11 +135,9 @@ tab_sex <- xtabs(~any_missing + sex, data = df_combined)
 
 mosaicplot(tab_sex, main = 'Counts by sex')
 
-prop_sex <- prop.table(tab_sex, 2)
-
-mosaicplot(prop_sex, main = 'Proportions by sex')
-
-fisher.test(tab_sex)
+chisq.test(tab_sex) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by sex')
 ```
 
 ## Education
@@ -161,11 +162,9 @@ tab_edu <- df_combined %>%
 
 mosaicplot(tab_edu, main = 'Counts by level of education')
 
-prop_edu <- prop.table(tab_edu, 2)
-
-mosaicplot(prop_edu, main = 'Proportions by level of education')
-
-fisher.test(tab_edu)
+chisq.test(tab_edu) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by level of education')
 ```
 
 ## Employment status
@@ -190,11 +189,9 @@ tab_employ <- df_combined %>%
 
 mosaicplot(tab_employ, main = 'Counts by employment status')
 
-prop_employ <- prop.table(tab_employ, 2)
-
-mosaicplot(prop_employ, main = 'Proportions by employment status')
-
-fisher.test(tab_employ)
+chisq.test(tab_employ) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by employment status')
 ```
 
 Those who were unemployed had the greatest proportion of missing values.
@@ -236,7 +233,9 @@ ggplot(data = df_CD4) +
     labs(subtitle = 'Data missingness vs lowest CD4')
 
 wilcox.test(low_CD4 ~ any_missing, 
-            data = df_CD4)
+            data = df_CD4) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by lowest CD4')
 ```
 
 ## Viral load
@@ -272,7 +271,9 @@ ggplot(data = df_VL) +
     labs(subtitle = 'Data missingness vs highest viral load')
 
 wilcox.test(high_VL ~ any_missing, 
-            data = df_VL)
+            data = df_VL) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by viral load')
 ```
 
 ----
@@ -304,9 +305,9 @@ mosaicplot(tab_site, main = 'Counts by study site')
 
 prop_site <- prop.table(tab_site, 2)
 
-mosaicplot(prop_site, main = 'Proportion of counts by study site')
-
-chisq.test(tab_site)
+chisq.test(tab_site) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: missing pain data by study site') 
 ```
 
 ## Proportion missing pain data by group allocation
@@ -341,12 +342,9 @@ tab_group <- df %>%
 mosaicplot(tab_group, main = 'Counts by group allocation',
            ylab = 'Allocation')
 
-prop_group <- prop.table(tab_group, 2)
-
-mosaicplot(prop_group, main = 'Proportions by group allocation',
-           ylab = 'Allocation')
-
-fisher.test(tab_group)
+chisq.test(tab_group) %>% 
+    tidy(.) %>% 
+    kable(caption = 'Week 0: Missing pain data by group allocation')
 ```
 
 ----
