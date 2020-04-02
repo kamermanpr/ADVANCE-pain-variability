@@ -46,9 +46,13 @@ Enter: `docker run --name pain -d -p 8787:8787 -e USER=user -e PASSWORD=password
     - Username: _user_	
     - Password: _password_
     
-#### Upload/clone repository
+#### Upload repository
 
-_TO BE ADDED_
+- Go to the [ADVANCE-pain-variability](https://github.com/kamermanpr/ADVANCE-pain-variability.git) repository on GitHub and select download as a zip file.
+
+- In the _Files_ tab on the lower right panel of RStudio, click **Upload**, located the zip file you downloaded and the click **OK**. The zip file will be uploaded and will automatically unzip, giving you access to all the content, including the analysis scripts, for the project.
+
+**Note:** The first time you _knit_ one of the _Rmd_ files, the genertation of the PDF output will take some time as _tinyTex_ will install all the required _LaTeX_ packages for generating PDF documents. 
 
 #### Shutting down
 
