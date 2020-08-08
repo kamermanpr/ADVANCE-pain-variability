@@ -1,0 +1,190 @@
+---
+title: "Script 8"
+subtitle: "Treatment group publication plots"
+author: "Peter Kamerman"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+geometry: margin=15mm
+---
+
+```{r setup, include = FALSE}
+# Load packages
+library(tidyverse)
+library(magrittr)
+library(ggthemes)
+library(patchwork)
+library(knitr)
+
+
+# Set figures directory
+if(!dir.exists('./figures')) {
+    dir.create('./figures/')
+}
+
+if(!dir.exists('./figures/script-8')) {
+    dir.create('./figures/script-8/')
+}
+
+# knitr options
+opts_chunk$set(warning = FALSE,
+               message = FALSE,
+               fig.path = './figures/script-8/')
+```
+
+----
+
+# Analysis notes
+
+## Definitions of missingness
+
+Data were regarded as **missing** when _pain in the last week_ data were not present for one or more of weeks 0, 12, 24, 36, 48. Data also were classified as **missing** when there were inconsistencies in the data across the variables collected within a week.
+
+## Definition of data inconsistencies
+
+Pain was defined as _pain in the last week_  being 'Yes', and _pain at its worst_ being > 0. These two measurements were then the "gatekeeper" measurements, such that the two measurements both had to be positive ('Yes' and '> 0', respectively) in order for there to be any entries for _site of pain_ and _site of worst pain_. Were the data were inconsistent (e.g., when there was no _pain in the last week_ and _pain at its worst_ = 0, but there were entries for _site of pain_ and _site of worst pain_), then the _site of pain_ and _site of worst pain_ entries were marked as **inconsistent**. 
+
+Data also were considered **inconsistent** when _pain in the last week_ = 'Yes', but _site of worst pain_ = 'None'. 
+
+Lastly, data were considered **inconsistent** when _site of worst pain_ was not listed as one of the pain locations for a given measurement week.
+
+For analysis purposes, missing data in the _site of pain_ columns were changed to **'No'** (pain not present in the site). This approach was conservative, but we believed that the approach would have the least effect on the outcome, while still retaining as many participants as possible.
+
+----
+
+# Import data
+
+```{r import}
+df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, 
+           group, pain_in_the_last_week, pain_worst, 
+           any_missing, interval_numeric)
+```
+
+# Quick look 
+
+```{r inspect}
+head(df)
+glimpse(df)
+```
+
+# Basic clean
+
+```{r clean}
+# Clean and process data
+df %<>% 
+    filter(any_missing == 'No') %>% 
+    select(-any_missing)
+```
+
+# Quick tabulations 
+
+## Analysis data set for the period 0 to 48 weeks
+
+```{r quick3}
+# Tabulate data
+xtabs(~interval_name, data = df)
+```
+
+----
+
+# Plots
+
+# Analysis
+
+## Pain frequency by group
+```{r pain_freq}
+# Process data
+freq <- df %>% 
+  select(interval_name, group, pain_in_the_last_week) %>% 
+  mutate(group = str_remove_all(group, pattern = ' ')) %>% 
+  mutate(pain_in_the_last_week = pain_in_the_last_week == 'Yes') %>% 
+  group_by(interval_name, group) %>% 
+  summarise(count = sum(pain_in_the_last_week == TRUE),
+            total = sum(count + sum(pain_in_the_last_week == FALSE)),
+            proportion = mean(pain_in_the_last_week)) %>% 
+  ungroup()
+
+# Plot data
+p_proportion <- freq %>% 
+  ggplot(data = .) +
+  aes(x = group,
+      y = proportion,
+      fill = group) +
+  geom_col() +
+  labs(title = 'A: Proportion with pain',
+       y = 'Proportion') +
+  scale_y_continuous(limits = c(0, 1),
+                     breaks = c(0, 0.5, 1)) +
+  scale_fill_tableau() +
+  #scale_fill_manual(values = c('#0a4264', '#1170aa', '#1f9ce9')) +
+  theme(axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(size = 22),
+        axis.title = element_text(size = 22),
+        axis.text.y = element_text(size = 22),
+        axis.text.x = element_blank(),
+        strip.background = element_rect(fill = '#999999'),
+        strip.text = element_text(size = 18),
+        panel.grid = element_blank(),
+        legend.position = 'top',
+        legend.text = element_text(size = 18),
+        legend.title = element_blank()) +
+  facet_grid(.~interval_name); p_proportion
+```
+
+## Pain intensity by group
+
+```{r pain_intensity}
+# Process data
+intensity <- df %>% 
+  select(interval_name, group, pain_worst) %>% 
+  mutate(group = str_remove_all(group, pattern = ' ')) %>% 
+  filter(pain_worst > 0) 
+
+# Plot data
+p_intensity <- intensity %>% 
+  ggplot(data = .) +
+  aes(x = group,
+      y = pain_worst,
+      fill = group) +
+  geom_boxplot() +
+  labs(title = 'B: Intensity of the worst pain',
+       y = 'Intensity') +
+  scale_y_continuous(limits = c(0, 10),
+                     breaks = c(0, 5, 10)) +
+  theme(axis.text.x = element_text(angle = 90, 
+                                   hjust = 0),
+        axis.title.x = element_blank()) +
+  scale_fill_tableau() +
+  #scale_fill_manual(values = c('#0a4264', '#1170aa', '#1f9ce9')) +
+  theme(axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        plot.title = element_text(size = 22),
+        axis.title = element_text(size = 22),
+        axis.text.y = element_text(size = 22),
+        axis.text.x = element_blank(),
+        strip.background = element_rect(fill = '#999999'),
+        strip.text = element_text(size = 18),
+        panel.grid = element_blank(),
+        legend.position = 'none') +
+  facet_grid(.~interval_name); p_intensity
+```
+
+----
+
+# Publication plot
+
+```{r patchwork}
+pp_plot <- p_proportion + p_intensity + plot_layout(ncol = 1)
+
+ggsave(x = pp_plot, 
+       filename = 'figures/figure-1.png', 
+       height = 8, width = 12)
+```
+
+----
+
+# Session information
+
+```{r session_info}
+sessionInfo()
+```
