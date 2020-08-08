@@ -219,7 +219,7 @@ sankey_plot1 <- ggplot(data = df_sankey) +
           panel.grid.minor = element_blank())
 
 # Save plot
-ggsave(filename = 'figures/figure-2.png', sankey_plot1, 
+ggsave(filename = 'figures/figure-3.png', sankey_plot1, 
        width = 10.2, height = 7.72)
 
 # Generate plot for knitr output

@@ -13,7 +13,6 @@ library(magrittr)
 library(ggthemes)
 library(patchwork)
 library(knitr)
-library(ggtext)
 
 
 # Set figures directory
@@ -57,6 +56,11 @@ For analysis purposes, missing data in the _site of pain_ columns were changed t
 df <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
     select(ranid, interval_name, pain_in_the_last_week, pain_worst, 
            site_worst, ends_with('_pain'), any_missing)
+
+df_2 <- read_rds('data-cleaned/data-ADVANCE.rds') %>% 
+    select(ranid, interval_name, 
+           group, pain_in_the_last_week, pain_worst, 
+           any_missing, interval_numeric)
 ```
 
 # Quick look 
@@ -313,7 +317,7 @@ pp_plot2 <- p_proportion + p_intensity + p_sites + p_worst_sites +
     plot_layout(ncol = 2)
 
 ggsave(x = pp_plot2, 
-       filename = 'figures/figure-1.png', 
+       filename = 'figures/figure-2.png', 
        height = 10, width = 11)
 ```
 ----
