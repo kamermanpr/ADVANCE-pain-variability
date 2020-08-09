@@ -7,8 +7,9 @@
 *.pptx
 *.pxm
 data-original/*.zip
-/ADVANCE-*
-/body-chart.png
+ADVANCE-brief-pain-questionnaire-3.pdf
+ADVANCE-venter-2019.pdf
+body-chart.png
 figures/figure-4a-legend.png
 figures/figure-4b-legend.png
 figures/figure-4c-legend.png
