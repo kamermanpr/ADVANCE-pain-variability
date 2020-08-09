@@ -32,11 +32,11 @@ You need to have docker installed on your computer. To do so, go to [docker.com]
 
 #### Download the latest image
 
-Enter: `docker pull kamermanpr/docker-pain-variability`
+Enter: `docker pull kamermanpr/docker-pain-variability:v1.3`
 
 #### Run the container
 
-Enter: `docker run --name pain -d -p 8787:8787 -e USER=user -e PASSWORD=password kamermanpr/docker-pain-variability`
+Enter: `docker run --name pain -d -p 8787:8787 -e USER=user -e PASSWORD=password kamermanpr/docker-pain-variability:v1.3`
 
 #### Login to RStudio Server
 
@@ -52,7 +52,9 @@ Enter: `docker run --name pain -d -p 8787:8787 -e USER=user -e PASSWORD=password
 
 - In the _Files_ tab on the lower right panel of RStudio, click **Upload**, located the zip file you downloaded and the click **OK**. The zip file will be uploaded and will automatically unzip, giving you access to all the content, including the analysis scripts, for the project.
 
-**Note:** The first time you _knit_ one of the _Rmd_ files, the genertation of the PDF output will take some time as _tinyTex_ will install all the required _LaTeX_ packages for generating PDF documents. 
+- In the _Files_ tab, double-click the **ADVANCE-pain-variability.Rproj** file to ensure all the working directories are in order before running any of the scripts.
+
+**Note:** The first time you _knit_ one of the _Rmd_ files, the generation of the PDF output will take some time as _tinyTex_ will install all the required _LaTeX_ packages for generating PDF documents. 
 
 #### Shutting down
 
