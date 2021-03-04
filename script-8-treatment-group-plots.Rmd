@@ -96,6 +96,11 @@ xtabs(~interval_name, data = df)
 freq <- df %>% 
   select(interval_name, group, pain_in_the_last_week) %>% 
   mutate(group = str_remove_all(group, pattern = ' ')) %>% 
+  mutate(group = case_when(
+    group == 'DTG+TAF+FTC' ~ 'TAF/FTC + DTG',
+    group == 'DTG+TDF+FTC' ~ 'TDF/FTC + DTG',
+    group == 'EFV+TDF+FTC' ~ 'TDF/FTC/EFV'
+  )) %>% 
   mutate(pain_in_the_last_week = pain_in_the_last_week == 'Yes') %>% 
   group_by(interval_name, group) %>% 
   summarise(count = sum(pain_in_the_last_week == TRUE),
@@ -178,7 +183,7 @@ pp_plot <- p_proportion + p_intensity + plot_layout(ncol = 1)
 
 ggsave(x = pp_plot, 
        filename = 'figures/figure-1.png', 
-       height = 8, width = 12)
+       height = 10, width = 12)
 ```
 
 ----
