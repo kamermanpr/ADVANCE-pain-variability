@@ -4,7 +4,11 @@ Data and analysis scripts for an exploratory comparison of group-level changes i
 
 ## Reference
 
-## Pre-print
+Wadley AL, Venter WDF, Moorhouse M, Akpomiemie G, Serenata C, Hill A, Sokhela S, Mqamelo N, Kamerman PR. High individual pain variability in people living with HIV: A graphical analysis. _Eur J Pain_ **25**:160–170, 2021. DOI: [10.1002/ejp.1658](https://doi.org/10.1002/ejp.1658).
+
+## Paper request
+
+If you do not have access to the print version of the paper, please contact Peter Kamerman at [peter.kamerman@gmail.com](mailto:peter.kamerman@gmail.com).
 
 ## Abstract
 
